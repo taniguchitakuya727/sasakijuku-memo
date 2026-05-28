@@ -881,6 +881,130 @@ function toast(msg, type='') {
 }
 
 // ══════════════════════════════════════════
+// 下書き自動保存・復元
+// ══════════════════════════════════════════
+const DRAFT_KEY = 'sasakijuku_draft';
+
+function saveDraft() {
+  const date = document.getElementById('recDate').value;
+  const fasiriVals = [...document.querySelectorAll('.fasiri-select')].map(s => s.value);
+  const utterances = [...document.querySelectorAll('.utterance-block')].map(b => ({
+    speaker: b.querySelector('.utt-speaker-select').value,
+    memo: b.querySelector('.utt-memo').value
+  }));
+  const draft = { date, sessionType: selectedType, fasiri: fasiriVals, utterances };
+  localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+}
+
+function clearDraft() {
+  localStorage.removeItem(DRAFT_KEY);
+}
+
+function restoreDraft() {
+  const raw = localStorage.getItem(DRAFT_KEY);
+  if (!raw) return;
+  try {
+    const draft = JSON.parse(raw);
+    if (!draft.utterances || draft.utterances.length === 0) return;
+
+    // 日付
+    if (draft.date) {
+      document.getElementById('recDate').value = draft.date;
+      document.getElementById('weekdayDisplay').textContent = `（${getWeekday(draft.date)}曜日）`;
+    }
+    // セッション種類
+    if (draft.sessionType) selectType(draft.sessionType);
+    // ファシリ（既存行に設定、2人目があれば追加）
+    const fasiriList = document.getElementById('fasiriList');
+    draft.fasiri.forEach((name, i) => {
+      if (i > 0) addFasiriRow();
+      const selects = fasiriList.querySelectorAll('.fasiri-select');
+      if (selects[i]) selects[i].value = name;
+    });
+    // 発言ブロック復元
+    document.getElementById('utteranceList').innerHTML = '';
+    uttCount = 0;
+    draft.utterances.forEach(u => {
+      addUtterance(false);
+      const blocks = document.querySelectorAll('.utterance-block');
+      const last = blocks[blocks.length - 1];
+      last.querySelector('.utt-speaker-select').value = u.speaker;
+      last.querySelector('.utt-memo').value = u.memo;
+    });
+
+    // 復元通知
+    const banner = document.createElement('div');
+    banner.style.cssText = 'background:rgba(79,156,249,.15);border:1px solid var(--accent);border-radius:8px;padding:10px 14px;font-size:12px;color:var(--accent);margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;';
+    banner.innerHTML = `📝 前回の入力途中のデータを復元しました <button onclick="clearDraft();this.parentElement.remove()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:12px;">クリア</button>`;
+    document.getElementById('panel-record').insertBefore(banner, document.getElementById('panel-record').firstChild);
+  } catch(e) { clearDraft(); }
+}
+
+// 入力のたびに下書き保存（500msデバウンス）
+let draftTimer = null;
+function scheduleDraft() {
+  clearTimeout(draftTimer);
+  draftTimer = setTimeout(saveDraft, 500);
+}
+document.addEventListener('input', e => {
+  if (document.getElementById('panel-record').classList.contains('active')) scheduleDraft();
+});
+document.addEventListener('change', e => {
+  if (document.getElementById('panel-record').classList.contains('active')) scheduleDraft();
+});
+
+// 保存成功時に下書きをクリア
+const _origSubmit = submitRecord;
+async function submitRecord() {
+  const url = getUrl();
+  if (!url) { switchTab('setup'); toast('先にGAS URLを設定してください','error'); return; }
+  if (!selectedType) { toast('セッション種類を選択してください','error'); return; }
+  const date = document.getElementById('recDate').value;
+  if (!date) { toast('日付を入力してください','error'); return; }
+  const fasiriVals = [...document.querySelectorAll('.fasiri-select')].map(s => s.value.trim()).filter(Boolean);
+  if (!fasiriVals.length) { toast('ファシリテーターを選択してください','error'); return; }
+  const fasiri = fasiriVals.join('・');
+  const uttBlocks = document.querySelectorAll('.utterance-block');
+  const utterances = [];
+  uttBlocks.forEach(b => {
+    const speaker = b.querySelector('.utt-speaker-select').value.trim();
+    const memo    = b.querySelector('.utt-memo').value.trim();
+    if (speaker || memo) utterances.push({speaker, memo});
+  });
+  if (!utterances.length) { toast('発言/メモを1件以上入力してください','error'); return; }
+  const payload = {date, weekday: getWeekday(date), sessionType: selectedType, fasiri, utterances};
+  const btn = document.getElementById('submitBtn');
+  btn.disabled = true; btn.textContent = '保存中…';
+  try {
+    await fetch(url, {
+      method:'POST', mode:'no-cors',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(payload)
+    });
+    clearDraft();
+    toast('保存しました ✓','success');
+    document.getElementById('utteranceList').innerHTML = '';
+    uttCount = 0;
+    selectType('');
+    addUtterance();
+    // 復元バナーがあれば消す
+    const banner = document.querySelector('#panel-record > div[style]');
+    if (banner) banner.remove();
+  } catch(e) { toast('エラー: '+e.message,'error'); }
+  finally { btn.disabled=false; btn.textContent='💾 スプレッドシートに保存'; }
+}
+
+// 離脱警告
+window.addEventListener('beforeunload', e => {
+  const uttBlocks = document.querySelectorAll('.utterance-block');
+  const hasInput = [...uttBlocks].some(b => b.querySelector('.utt-memo').value.trim());
+  if (hasInput) {
+    e.preventDefault();
+    e.returnValue = '';
+  }
+});
+
+// ══════════════════════════════════════════
 // Init
 // ══════════════════════════════════════════
 updateStatus();
@@ -888,6 +1012,8 @@ const saved = getUrl();
 if (saved) { document.getElementById('gasUrl').value = saved; loadMembers(); }
 addFasiriRow(true);
 addUtterance();
+// 下書きがあれば復元（メンバー読み込み後に実行）
+setTimeout(restoreDraft, 800);
 </script>
 </body>
 </html>
