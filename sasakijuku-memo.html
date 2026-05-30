@@ -1,0 +1,1034 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>差取り塾 セッションメモ</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0f1117;
+  --surface: #181c27;
+  --surface2: #1f2437;
+  --border: #2a3050;
+  --accent: #4f9cf9;
+  --accent2: #7c5cbf;
+  --text: #e8eaf0;
+  --muted: #6b7592;
+  --success: #3ecf8e;
+  --danger: #f06577;
+  --satori: #f9c94f;
+  --master: #4ff9c9;
+  --yuu: #f97bff;
+  --shaberi: #ff9a4f;
+  --radius: 10px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'Noto Sans JP', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  padding-bottom: 80px;
+}
+
+/* ── Header ── */
+header {
+  background: linear-gradient(135deg, #1a1f35 0%, #111520 100%);
+  border-bottom: 1px solid var(--border);
+  padding: 14px 18px;
+  display: flex; align-items: center; justify-content: space-between;
+  position: sticky; top: 0; z-index: 100;
+}
+.logo { display: flex; align-items: center; gap: 10px; }
+.logo-mark {
+  width: 34px; height: 34px;
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px; font-weight: 700; color: #fff; letter-spacing: -1px;
+}
+.logo-text { font-size: 15px; font-weight: 700; }
+.logo-sub  { font-size: 10px; color: var(--muted); letter-spacing: .08em; }
+.dot { width: 7px; height: 7px; border-radius: 50%; background: var(--muted); display: inline-block; margin-right: 4px; }
+.dot.ok  { background: var(--success); }
+.dot.err { background: var(--danger); }
+#statusText { font-size: 11px; color: var(--muted); }
+
+/* ── Tabs ── */
+.tabs {
+  display: flex; border-bottom: 1px solid var(--border);
+  background: var(--surface); padding: 0 8px;
+  overflow-x: auto;
+}
+.tab-btn {
+  padding: 11px 13px; border: none; background: none; cursor: pointer;
+  font-family: inherit; font-size: 12px; color: var(--muted);
+  border-bottom: 2px solid transparent; transition: all .2s; white-space: nowrap;
+}
+.tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 600; }
+
+/* ── Panel ── */
+.panel { display: none; padding: 18px 16px; }
+.panel.active { display: block; }
+
+/* ── Cards / Sections ── */
+.card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 18px; margin-bottom: 14px;
+}
+.card h3 { font-size: 13px; color: var(--accent); margin-bottom: 14px; display: flex; align-items: center; gap: 6px; }
+.form-label { font-size: 11px; color: var(--muted); letter-spacing: .06em; margin-bottom: 6px; display: block; text-transform: uppercase; }
+.form-section { margin-bottom: 18px; }
+
+/* ── Inputs ── */
+input[type="date"], input[type="text"], textarea, select {
+  width: 100%; background: var(--surface2);
+  border: 1px solid var(--border); border-radius: var(--radius);
+  color: var(--text); font-size: 14px; padding: 10px 13px;
+  font-family: 'Noto Sans JP', sans-serif; outline: none;
+  transition: border-color .2s; appearance: none;
+}
+select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%236b7592' d='M6 8L0 0h12z'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 13px center; padding-right: 36px; }
+input:focus, textarea:focus, select:focus { border-color: var(--accent); }
+textarea { resize: vertical; min-height: 80px; line-height: 1.65; }
+select option { background: #1a1f35; }
+
+/* ── Session type pills ── */
+.session-type-row { display: flex; gap: 10px; }
+.type-pill {
+  flex: 1; padding: 11px; border-radius: var(--radius);
+  border: 2px solid var(--border); background: var(--surface2);
+  cursor: pointer; text-align: center; font-size: 14px; font-weight: 700;
+  font-family: inherit; color: var(--muted); transition: all .2s;
+}
+.type-pill.satori.selected  { border-color: var(--satori);  color: var(--satori);  background: rgba(249,201,79,.1); }
+.type-pill.master.selected  { border-color: var(--master);  color: var(--master);  background: rgba(79,249,201,.1); }
+.type-pill.yuu.selected     { border-color: var(--yuu);     color: var(--yuu);     background: rgba(249,123,255,.1); }
+.type-pill.shaberi.selected { border-color: var(--shaberi); color: var(--shaberi); background: rgba(255,154,79,.1); }
+.type-pill:not(.selected):hover { border-color: var(--muted); color: var(--text); }
+
+/* ── Fasiri rows ── */
+.fasiri-row { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
+.fasiri-row select { flex: 1; }
+.icon-btn {
+  width: 36px; height: 36px; border-radius: 8px; flex-shrink: 0;
+  background: var(--surface2); border: 1px solid var(--border);
+  color: var(--muted); font-size: 18px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; transition: all .2s;
+}
+.icon-btn.plus:hover  { color: var(--accent);  border-color: var(--accent); }
+.icon-btn.minus:hover { color: var(--danger);   border-color: var(--danger); }
+.add-row-btn {
+  width: 100%; background: transparent; border: 1px dashed var(--border);
+  border-radius: var(--radius); color: var(--muted); padding: 10px;
+  cursor: pointer; font-size: 13px; font-family: inherit; transition: all .2s;
+}
+.add-row-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+/* ── Utterance blocks ── */
+.utterance-block {
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: var(--radius); margin-bottom: 8px; overflow: hidden;
+  transition: border-color .2s;
+}
+.utterance-block:focus-within { border-color: var(--accent); }
+.utt-speaker-row {
+  display: flex; align-items: center; gap: 0;
+  border-bottom: 1px solid var(--border);
+}
+.utt-speaker-row select {
+  flex: 1; border: none; border-radius: 0;
+  background: var(--surface2); padding: 9px 12px;
+  font-size: 13px; font-weight: 500;
+}
+.utt-speaker-row select:focus { border: none; box-shadow: none; }
+.utt-del-btn {
+  width: 40px; height: 40px; background: none; border: none;
+  color: var(--muted); cursor: pointer; font-size: 16px;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.utt-del-btn:hover { color: var(--danger); }
+.utterance-block textarea {
+  border: none; border-radius: 0; background: var(--surface2);
+  padding: 10px 13px; font-size: 14px; min-height: 72px;
+}
+.utterance-block textarea:focus { border: none; }
+
+/* 次の発言追加ボタン */
+.next-utt-btn {
+  width: 100%; background: var(--surface);
+  border: 1px dashed var(--border); border-radius: var(--radius);
+  color: var(--accent); padding: 11px; cursor: pointer;
+  font-size: 13px; font-family: inherit; font-weight: 600;
+  transition: all .2s; margin-top: 4px; letter-spacing: .02em;
+}
+.next-utt-btn:hover { background: rgba(79,156,249,.08); border-color: var(--accent); }
+
+/* ── Submit ── */
+.submit-btn {
+  width: 100%; background: linear-gradient(135deg, var(--accent), var(--accent2));
+  border: none; border-radius: var(--radius);
+  color: #fff; font-size: 15px; font-weight: 700;
+  padding: 15px; cursor: pointer; font-family: inherit;
+  margin-top: 6px; letter-spacing: .03em; transition: opacity .2s;
+}
+.submit-btn:hover { opacity: .9; }
+.submit-btn:disabled { opacity: .4; cursor: not-allowed; }
+
+/* ── Log ── */
+.search-row { display: flex; gap: 8px; margin-bottom: 14px; }
+.search-row input { flex: 1; }
+.reload-btn {
+  background: var(--surface); border: 1px solid var(--border);
+  color: var(--muted); padding: 10px 13px; border-radius: var(--radius);
+  cursor: pointer; font-size: 14px;
+}
+.reload-btn:hover { color: var(--text); }
+.filter-row { display: flex; gap: 8px; margin-bottom: 14px; }
+.filter-chip {
+  padding: 5px 12px; border-radius: 20px; border: 1px solid var(--border);
+  background: var(--surface2); color: var(--muted); font-size: 12px;
+  cursor: pointer; font-family: inherit; transition: all .2s;
+}
+.filter-chip.active { background: var(--surface); color: var(--text); border-color: var(--muted); }
+.filter-chip.satori.active  { border-color: var(--satori);  color: var(--satori);  background: rgba(249,201,79,.1); }
+.filter-chip.master.active  { border-color: var(--master);  color: var(--master);  background: rgba(79,249,201,.1); }
+.filter-chip.yuu.active     { border-color: var(--yuu);     color: var(--yuu);     background: rgba(249,123,255,.1); }
+.filter-chip.shaberi.active { border-color: var(--shaberi); color: var(--shaberi); background: rgba(255,154,79,.1); }
+
+.session-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 15px; margin-bottom: 11px;
+  cursor: pointer; transition: border-color .2s;
+}
+.session-card:hover { border-color: var(--accent); }
+.session-card.satori-card  { border-left: 3px solid var(--satori); }
+.session-card.master-card  { border-left: 3px solid var(--master); }
+.session-card.yuu-card     { border-left: 3px solid var(--yuu); }
+.session-card.shaberi-card { border-left: 3px solid var(--shaberi); }
+.sc-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px; }
+.sc-date { font-size: 13px; font-weight: 700; color: var(--accent); font-family: 'DM Mono', monospace; }
+.sc-meta { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; }
+.sc-type-badge {
+  font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 10px;
+  letter-spacing: .04em;
+}
+.sc-type-badge.satori  { background: rgba(249,201,79,.15);  color: var(--satori); }
+.sc-type-badge.master  { background: rgba(79,249,201,.15);  color: var(--master); }
+.sc-type-badge.yuu     { background: rgba(249,123,255,.15); color: var(--yuu); }
+.sc-type-badge.shaberi { background: rgba(255,154,79,.15);  color: var(--shaberi); }
+.sc-fasiri { font-size: 11px; color: var(--muted); }
+.sc-hint { font-size: 11px; color: var(--muted); margin-top: 4px; }
+.weekday-badge { display: inline-block; background: var(--surface2); border-radius: 4px; padding: 1px 6px; font-size: 10px; color: var(--muted); margin-left: 5px; }
+.utterance-item { border-top: 1px solid var(--border); padding-top: 9px; margin-top: 9px; }
+.ui-speaker { font-size: 11px; font-weight: 700; color: var(--accent2); margin-bottom: 3px; }
+.ui-memo { font-size: 13px; line-height: 1.6; }
+.session-card.collapsed .utterance-item { display: none; }
+
+/* ── Members ── */
+.member-form { display: flex; gap: 8px; margin-bottom: 16px; }
+.member-form input  { flex: 1; }
+.member-form select { width: 130px; flex-shrink: 0; }
+.add-member-btn {
+  background: var(--accent); color: #fff; border: none;
+  padding: 0 16px; border-radius: var(--radius);
+  font-size: 14px; font-weight: 700; cursor: pointer; flex-shrink: 0;
+}
+.member-list { display: flex; flex-direction: column; gap: 8px; }
+.member-item {
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 8px; padding: 11px 14px;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.member-name { font-size: 14px; font-weight: 500; }
+.member-role-badge {
+  font-size: 10px; padding: 2px 8px; border-radius: 10px;
+  font-weight: 700; letter-spacing: .04em;
+}
+.member-role-badge.fasiri      { background: rgba(79,156,249,.15);  color: var(--accent); }
+.member-role-badge.satori      { background: rgba(249,201,79,.15);  color: var(--satori); }
+.member-role-badge.master      { background: rgba(79,249,201,.15);  color: var(--master); }
+.member-del { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 16px; }
+.member-del:hover { color: var(--danger); }
+
+/* ── Setup ── */
+.step { display: flex; gap: 11px; margin-bottom: 14px; align-items: flex-start; }
+.step-num {
+  width: 24px; height: 24px; border-radius: 50%; background: var(--accent2);
+  color: #fff; font-size: 11px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 2px;
+}
+.step-body { flex: 1; }
+.step-body p { font-size: 13px; line-height: 1.6; }
+.step-body small { font-size: 11px; color: var(--muted); display: block; margin-top: 3px; }
+.code-block {
+  background: #0a0d16; border: 1px solid var(--border); border-radius: 6px;
+  padding: 11px; margin-top: 8px;
+  font-family: 'DM Mono', monospace; font-size: 11px; color: #a8d8ff;
+  white-space: pre; overflow-x: auto; line-height: 1.6;
+}
+.copy-btn {
+  background: var(--surface2); border: 1px solid var(--border);
+  color: var(--muted); font-size: 11px; padding: 4px 10px;
+  border-radius: 4px; cursor: pointer; margin-top: 6px; font-family: inherit;
+}
+.copy-btn:hover { color: var(--text); }
+.url-row { display: flex; gap: 8px; margin-top: 8px; }
+.url-row input {
+  flex: 1; background: #0a0d16; border: 1px solid var(--border);
+  border-radius: 6px; color: var(--text); font-size: 12px;
+  padding: 8px 12px; font-family: 'DM Mono', monospace; outline: none;
+}
+.url-row input:focus { border-color: var(--accent); }
+.btn-save {
+  background: var(--accent); color: #fff; border: none;
+  padding: 8px 14px; border-radius: 6px; cursor: pointer;
+  font-size: 12px; font-family: inherit; font-weight: 600; white-space: nowrap;
+}
+
+/* ── Empty / Toast ── */
+.empty-state { text-align: center; padding: 40px 20px; color: var(--muted); font-size: 13px; }
+#toast {
+  position: fixed; bottom: 24px; left: 50%;
+  transform: translateX(-50%) translateY(80px);
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 30px; padding: 10px 22px;
+  font-size: 13px; color: var(--text);
+  transition: transform .3s ease; z-index: 999; white-space: nowrap;
+}
+#toast.show    { transform: translateX(-50%) translateY(0); }
+#toast.success { border-color: var(--success); color: var(--success); }
+#toast.error   { border-color: var(--danger);  color: var(--danger); }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-mark">差</div>
+    <div>
+      <div class="logo-text">差取り塾</div>
+      <div class="logo-sub">SESSION NOTES</div>
+    </div>
+  </div>
+  <span><span class="dot" id="dot"></span><span id="statusText">未設定</span></span>
+</header>
+
+<div class="tabs">
+  <button class="tab-btn active"  onclick="switchTab('setup')">⚙️ 設定</button>
+  <button class="tab-btn"         onclick="switchTab('record')">✏️ 記録</button>
+  <button class="tab-btn"         onclick="switchTab('log')">📋 ログ</button>
+  <button class="tab-btn"         onclick="switchTab('members')">👥 メンバー</button>
+</div>
+
+<!-- ════════ SETUP ════════ -->
+<div id="panel-setup" class="panel active">
+  <div class="card">
+    <h3>📋 Step 1: スプレッドシートを準備する</h3>
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-body">
+        <p>Google スプレッドシートを新規作成する</p>
+        <small>シート名は何でもOK。シートは <strong>sessions</strong> と <strong>members</strong> の2枚が自動で作られます</small>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>🔧 Step 2: Apps Script を設定する</h3>
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-body">
+        <p>メニュー「拡張機能」→「Apps Script」を開く</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">3</div>
+      <div class="step-body">
+        <p>以下を<strong>まるごとコピペ</strong>して保存（⌘S）</p>
+        <div class="code-block" id="gasCodeDisplay"></div>
+        <button class="copy-btn" onclick="copyGasCode()">📋 コードをコピー</button>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">4</div>
+      <div class="step-body">
+        <p>「デプロイ」→「新しいデプロイ」→ 種類：<strong>ウェブアプリ</strong>、アクセス：<strong>全員</strong> → デプロイ</p>
+        <small>⚠️「アクセスを承認」が出たら許可してください</small>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">5</div>
+      <div class="step-body">
+        <p>表示された <strong>ウェブアプリのURL</strong> を貼り付けて保存</p>
+        <div class="url-row">
+          <input type="text" id="gasUrl" placeholder="https://script.google.com/macros/s/..." />
+          <button class="btn-save" onclick="saveGasUrl()">保存</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════ RECORD ════════ -->
+<div id="panel-record" class="panel">
+
+  <!-- セッション種類 -->
+  <div class="form-section">
+    <label class="form-label">セッション種類</label>
+    <div class="session-type-row">
+      <button class="type-pill satori" id="pill-satori" onclick="selectType('悟り')">🌸 悟り</button>
+      <button class="type-pill master" id="pill-master" onclick="selectType('マスター')">⭐ マスター</button>
+    </div>
+    <div class="session-type-row" style="margin-top:8px">
+      <button class="type-pill yuu"     id="pill-yuu"     onclick="selectType('ゆうand笑夢')">💜 ゆうand笑夢</button>
+      <button class="type-pill shaberi" id="pill-shaberi" onclick="selectType('しゃべり場')">🎙️ しゃべり場</button>
+    </div>
+  </div>
+
+  <!-- 日付 -->
+  <div class="form-section">
+    <label class="form-label">日付</label>
+    <input type="date" id="recDate" />
+    <div id="weekdayDisplay" style="font-size:12px;color:var(--muted);margin-top:5px;"></div>
+  </div>
+
+  <!-- ファシリテーター -->
+  <div class="form-section">
+    <label class="form-label">ファシリテーター</label>
+    <div id="fasiriList"></div>
+    <button class="add-row-btn" id="addFasiriBtn" onclick="addFasiriRow()">＋ 2人目を追加</button>
+  </div>
+
+  <!-- 発言 / メモ -->
+  <div class="form-section">
+    <label class="form-label">発言 / メモ</label>
+    <div id="utteranceList"></div>
+    <button class="next-utt-btn" onclick="addUtterance(true)">＋ 次の発言者</button>
+  </div>
+
+  <button class="submit-btn" id="submitBtn" onclick="submitRecord()">💾 スプレッドシートに保存</button>
+</div>
+
+<!-- ════════ LOG ════════ -->
+<div id="panel-log" class="panel">
+  <div class="search-row">
+    <input type="text" id="searchInput" placeholder="🔍 検索…" oninput="renderLog()" />
+    <button class="reload-btn" onclick="loadLog()">↺</button>
+  </div>
+  <div class="filter-row" style="flex-wrap:wrap">
+    <button class="filter-chip active" id="chip-all"     onclick="setFilter('all')">すべて</button>
+    <button class="filter-chip satori" id="chip-satori"  onclick="setFilter('悟り')">🌸 悟り</button>
+    <button class="filter-chip master" id="chip-master"  onclick="setFilter('マスター')">⭐ マスター</button>
+    <button class="filter-chip yuu"    id="chip-yuu"     onclick="setFilter('ゆうand笑夢')">💜 ゆうand笑夢</button>
+    <button class="filter-chip shaberi" id="chip-shaberi" onclick="setFilter('しゃべり場')">🎙️ しゃべり場</button>
+  </div>
+  <div id="logContainer"><div class="empty-state">ログを読み込み中…</div></div>
+</div>
+
+<!-- ════════ MEMBERS ════════ -->
+<div id="panel-members" class="panel">
+  <div class="card">
+    <h3>👤 メンバーを追加</h3>
+    <div class="member-form">
+      <input type="text" id="newMemberName" placeholder="名前" />
+      <select id="newMemberRole">
+        <option value="fasiri">ファシリ</option>
+        <option value="master">マスター</option>
+        <option value="satori">悟り</option>
+      </select>
+      <button class="add-member-btn" onclick="addMember()">追加</button>
+    </div>
+  </div>
+  <div class="card">
+    <h3>📋 名簿</h3>
+    <div id="memberList"><div class="empty-state">読み込み中…</div></div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ══════════════════════════════════════════
+// GAS CODE
+// ══════════════════════════════════════════
+const GAS_CODE = `const SESSIONS_SHEET = 'sessions';
+const MEMBERS_SHEET  = 'members';
+
+function doPost(e) {
+  const data = JSON.parse(e.postData.contents);
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+
+  if (data.action === 'addMember') {
+    return handleAddMember(ss, data);
+  } else if (data.action === 'deleteMember') {
+    return handleDeleteMember(ss, data);
+  } else {
+    return handleAddSession(ss, data);
+  }
+}
+
+function handleAddSession(ss, data) {
+  let sh = ss.getSheetByName(SESSIONS_SHEET);
+  if (!sh) sh = ss.insertSheet(SESSIONS_SHEET);
+  if (sh.getLastRow() === 0) {
+    sh.appendRow(['日付','曜日','セッション種類','ファシリテーター','発言者','メモ','登録日時']);
+  }
+  const ts = new Date().toLocaleString('ja-JP',{timeZone:'Asia/Tokyo'});
+  data.utterances.forEach(u => {
+    sh.appendRow([data.date, data.weekday, data.sessionType, data.fasiri, u.speaker, u.memo, ts]);
+  });
+  return json({ok:true});
+}
+
+function handleAddMember(ss, data) {
+  let sh = ss.getSheetByName(MEMBERS_SHEET);
+  if (!sh) sh = ss.insertSheet(MEMBERS_SHEET);
+  if (sh.getLastRow() === 0) sh.appendRow(['名前','役割']);
+  // 重複チェック
+  const rows = sh.getDataRange().getValues();
+  const exists = rows.some(r => r[0] === data.name);
+  if (exists) return json({ok:false, error:'already_exists'});
+  sh.appendRow([data.name, data.role]);
+  return json({ok:true});
+}
+
+function handleDeleteMember(ss, data) {
+  const sh = ss.getSheetByName(MEMBERS_SHEET);
+  if (!sh) return json({ok:false});
+  const rows = sh.getDataRange().getValues();
+  for (let i = rows.length - 1; i >= 1; i--) {
+    if (rows[i][0] === data.name) { sh.deleteRow(i+1); break; }
+  }
+  return json({ok:true});
+}
+
+function doGet(e) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const type = e.parameter.type || 'sessions';
+
+  if (type === 'members') {
+    const sh = ss.getSheetByName(MEMBERS_SHEET);
+    if (!sh || sh.getLastRow() <= 1) return json({members:[]});
+    const [, ...rows] = sh.getDataRange().getValues();
+    return json({members: rows.map(r => ({name:r[0], role:r[1]}))});
+  }
+
+  const sh = ss.getSheetByName(SESSIONS_SHEET);
+  if (!sh || sh.getLastRow() <= 1) return json({rows:[]});
+  const [header, ...data] = sh.getDataRange().getValues();
+  return json({rows: data.map(r => { const o={}; header.forEach((h,i)=>o[h]=r[i]); return o; })});
+}
+
+function json(obj) {
+  return ContentService
+    .createTextOutput(JSON.stringify(obj))
+    .setMimeType(ContentService.MimeType.JSON);
+}`;
+
+document.getElementById('gasCodeDisplay').textContent = GAS_CODE;
+
+// ══════════════════════════════════════════
+// State
+// ══════════════════════════════════════════
+let members = [];   // {name, role}
+let allRows = [];
+let logFilter = 'all';
+let selectedType = '';
+let uttCount = 0;
+let fasiriCount = 0;
+
+// ══════════════════════════════════════════
+// GAS URL
+// ══════════════════════════════════════════
+function getUrl() { return localStorage.getItem('sasakijuku_gas_url') || ''; }
+function saveGasUrl() {
+  const url = document.getElementById('gasUrl').value.trim();
+  if (!url.startsWith('https://script.google.com')) { toast('GAS のURLを入力してください','error'); return; }
+  localStorage.setItem('sasakijuku_gas_url', url);
+  updateStatus();
+  toast('URL を保存しました ✓','success');
+  loadMembers();
+}
+function updateStatus() {
+  const ok = !!getUrl();
+  document.getElementById('dot').className = ok ? 'dot ok' : 'dot';
+  document.getElementById('statusText').textContent = ok ? '接続済み' : '未設定';
+}
+function copyGasCode() {
+  navigator.clipboard.writeText(GAS_CODE).then(() => toast('コードをコピーしました','success'));
+}
+
+// ══════════════════════════════════════════
+// Tabs
+// ══════════════════════════════════════════
+const TAB_NAMES = ['setup','record','log','members'];
+function switchTab(name) {
+  document.querySelectorAll('.tab-btn').forEach((b,i) => b.classList.toggle('active', TAB_NAMES[i] === name));
+  document.querySelectorAll('.panel').forEach(p => p.classList.toggle('active', p.id === `panel-${name}`));
+  if (name === 'log')     loadLog();
+  if (name === 'members') renderMemberList();
+  if (name === 'record')  refreshSelects();
+}
+
+// ══════════════════════════════════════════
+// Members
+// ══════════════════════════════════════════
+async function loadMembers() {
+  const url = getUrl();
+  if (!url) return;
+  try {
+    const res = await fetch(`${url}?type=members&t=${Date.now()}`);
+    const data = await res.json();
+    members = data.members || [];
+    renderMemberList();
+    refreshSelects();
+  } catch(e) { console.warn('members load failed', e); }
+}
+
+function renderMemberList() {
+  const el = document.getElementById('memberList');
+  if (!members.length) { el.innerHTML = '<div class="empty-state">まだメンバーがいません</div>'; return; }
+  const roleLabel = { fasiri:'ファシリ', satori:'悟り', master:'マスター' };
+  el.innerHTML = members.map(m => `
+    <div class="member-item">
+      <div>
+        <span class="member-name">${escHtml(m.name)}</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <span class="member-role-badge ${m.role}">${roleLabel[m.role] || m.role}</span>
+        <button class="member-del" onclick="deleteMember('${escHtml(m.name)}')">✕</button>
+      </div>
+    </div>`).join('');
+}
+
+async function addMember() {
+  const url = getUrl();
+  if (!url) { toast('先にGAS URLを設定してください','error'); return; }
+  const name = document.getElementById('newMemberName').value.trim();
+  const role = document.getElementById('newMemberRole').value;
+  if (!name) { toast('名前を入力してください','error'); return; }
+
+  try {
+    await fetch(url, {
+      method:'POST', mode:'no-cors',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({action:'addMember', name, role})
+    });
+    members.push({name, role});
+    document.getElementById('newMemberName').value = '';
+    renderMemberList();
+    refreshSelects();
+    toast(`${name} を追加しました ✓`,'success');
+  } catch(e) { toast('エラー: '+e.message,'error'); }
+}
+
+async function deleteMember(name) {
+  const url = getUrl();
+  if (!confirm(`「${name}」を名簿から削除しますか？`)) return;
+  try {
+    await fetch(url, {
+      method:'POST', mode:'no-cors',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({action:'deleteMember', name})
+    });
+    members = members.filter(m => m.name !== name);
+    renderMemberList();
+    refreshSelects();
+    toast(`${name} を削除しました`,'success');
+  } catch(e) { toast('エラー: '+e.message,'error'); }
+}
+
+// ── Select option builders ──
+function buildOptions(filterRole, selectedVal='') {
+  let list;
+  if (filterRole === 'fasiri') {
+    // ファシリ候補はfasiriロールのみ
+    list = members.filter(m => m.role === 'fasiri');
+  } else if (filterRole === 'speaker-satori') {
+    // 悟りセッション：悟り＋マスター＋ファシリ全員
+    list = members.filter(m => m.role === 'satori' || m.role === 'master' || m.role === 'fasiri');
+  } else if (filterRole === 'speaker-master') {
+    // マスターセッション：マスター＋ファシリ（悟りは除外）
+    list = members.filter(m => m.role === 'master' || m.role === 'fasiri');
+  } else {
+    list = members;
+  }
+  const opts = list.map(m =>
+    `<option value="${escHtml(m.name)}" ${m.name===selectedVal?'selected':''}>${escHtml(m.name)}</option>`
+  ).join('');
+  return `<option value="">-- 選択 --</option>${opts}`;
+}
+
+function getSpeakerFilter() {
+  if (selectedType === '悟り')   return 'speaker-satori';
+  if (selectedType === 'マスター') return 'speaker-master';
+  return 'all';
+}
+
+function refreshSelects() {
+  // ファシリ
+  document.querySelectorAll('.fasiri-select').forEach(sel => {
+    const cur = sel.value;
+    sel.innerHTML = buildOptions('fasiri', cur);
+  });
+  // 発言者（セッション種類に応じて絞り込む）
+  const spFilter = getSpeakerFilter();
+  document.querySelectorAll('.utt-speaker-select').forEach(sel => {
+    const cur = sel.value;
+    sel.innerHTML = buildOptions(spFilter, cur);
+  });
+}
+
+// ══════════════════════════════════════════
+// Session type
+// ══════════════════════════════════════════
+function selectType(type) {
+  selectedType = type;
+  document.getElementById('pill-satori').classList.toggle('selected',  type === '悟り');
+  document.getElementById('pill-master').classList.toggle('selected',  type === 'マスター');
+  document.getElementById('pill-yuu').classList.toggle('selected',     type === 'ゆうand笑夢');
+  document.getElementById('pill-shaberi').classList.toggle('selected', type === 'しゃべり場');
+  refreshSelects();
+}
+
+// ══════════════════════════════════════════
+// Date
+// ══════════════════════════════════════════
+const WEEKDAYS = ['日','月','火','水','木','金','土'];
+function getWeekday(d) { return WEEKDAYS[new Date(d).getDay()]; }
+document.getElementById('recDate').addEventListener('change', function() {
+  document.getElementById('weekdayDisplay').textContent = this.value ? `（${getWeekday(this.value)}曜日）` : '';
+});
+(function() {
+  const t = new Date();
+  const ymd = `${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}`;
+  document.getElementById('recDate').value = ymd;
+  document.getElementById('weekdayDisplay').textContent = `（${WEEKDAYS[t.getDay()]}曜日）`;
+})();
+
+// ══════════════════════════════════════════
+// Fasiri rows
+// ══════════════════════════════════════════
+function addFasiriRow(init=false) {
+  const list = document.getElementById('fasiriList');
+  if (!init && list.children.length >= 2) { toast('ファシリは最大2名です','error'); return; }
+  fasiriCount++;
+  const id = fasiriCount;
+  const div = document.createElement('div');
+  div.className = 'fasiri-row'; div.id = `frow-${id}`;
+  div.innerHTML = `
+    <select class="fasiri-select">${buildOptions('fasiri')}</select>
+    <button class="icon-btn minus" onclick="removeFasiriRow(${id})">−</button>`;
+  list.appendChild(div);
+  document.getElementById('addFasiriBtn').style.display = list.children.length >= 2 ? 'none' : '';
+}
+function removeFasiriRow(id) {
+  const list = document.getElementById('fasiriList');
+  if (list.children.length <= 1) { toast('ファシリは最低1名必要です','error'); return; }
+  document.getElementById(`frow-${id}`).remove();
+  document.getElementById('addFasiriBtn').style.display = '';
+}
+
+// ══════════════════════════════════════════
+// Utterance blocks
+// ══════════════════════════════════════════
+function addUtterance(focusMemo=false) {
+  uttCount++;
+  const id = uttCount;
+  const div = document.createElement('div');
+  div.className = 'utterance-block'; div.id = `utt-${id}`;
+  div.innerHTML = `
+    <div class="utt-speaker-row">
+      <select class="utt-speaker-select">${buildOptions('all')}</select>
+      <button class="utt-del-btn" onclick="document.getElementById('utt-${id}').remove()">✕</button>
+    </div>
+    <textarea class="utt-memo" placeholder="発言内容・気づき…"></textarea>`;
+  document.getElementById('utteranceList').appendChild(div);
+  // 新しく追加した時はメモ欄にフォーカス（キーボードがすぐ出る）
+  if (focusMemo) {
+    setTimeout(() => div.querySelector('.utt-memo').focus(), 50);
+  }
+  // メモ欄でCmd+Enter / Ctrl+Enterで次の発言者を追加
+  div.querySelector('.utt-memo').addEventListener('keydown', e => {
+    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+      e.preventDefault();
+      addUtterance(true);
+    }
+  });
+}
+
+// ══════════════════════════════════════════
+// Submit
+// ══════════════════════════════════════════
+async function submitRecord() {
+  const url = getUrl();
+  if (!url) { switchTab('setup'); toast('先にGAS URLを設定してください','error'); return; }
+  if (!selectedType) { toast('セッション種類を選択してください','error'); return; }
+
+  const date = document.getElementById('recDate').value;
+  if (!date) { toast('日付を入力してください','error'); return; }
+
+  const fasiriVals = [...document.querySelectorAll('.fasiri-select')]
+    .map(s => s.value.trim()).filter(Boolean);
+  if (!fasiriVals.length) { toast('ファシリテーターを選択してください','error'); return; }
+  const fasiri = fasiriVals.join('・');
+
+  const uttBlocks = document.querySelectorAll('.utterance-block');
+  const utterances = [];
+  uttBlocks.forEach(b => {
+    const speaker = b.querySelector('.utt-speaker-select').value.trim();
+    const memo    = b.querySelector('.utt-memo').value.trim();
+    if (speaker || memo) utterances.push({speaker, memo});
+  });
+  if (!utterances.length) { toast('発言/メモを1件以上入力してください','error'); return; }
+
+  const payload = {date, weekday: getWeekday(date), sessionType: selectedType, fasiri, utterances};
+
+  const btn = document.getElementById('submitBtn');
+  btn.disabled = true; btn.textContent = '保存中…';
+  try {
+    await fetch(url, {
+      method:'POST', mode:'no-cors',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(payload)
+    });
+    toast('保存しました ✓','success');
+    // リセット
+    document.getElementById('utteranceList').innerHTML = '';
+    uttCount = 0;
+    selectType('');
+    addUtterance();
+  } catch(e) { toast('エラー: '+e.message,'error'); }
+  finally { btn.disabled=false; btn.textContent='💾 スプレッドシートに保存'; }
+}
+
+// ══════════════════════════════════════════
+// Log
+// ══════════════════════════════════════════
+function setFilter(f) {
+  logFilter = f;
+  ['all','satori','master','yuu','shaberi'].forEach(k => {
+    document.getElementById(`chip-${k}`).classList.toggle('active', k === f);
+  });
+  renderLog();
+}
+
+async function loadLog() {
+  const url = getUrl();
+  if (!url) { document.getElementById('logContainer').innerHTML = '<div class="empty-state">URLを設定してください</div>'; return; }
+  document.getElementById('logContainer').innerHTML = '<div class="empty-state">読み込み中…</div>';
+  try {
+    const res = await fetch(`${url}?type=sessions&t=${Date.now()}`);
+    const data = await res.json();
+    allRows = data.rows || [];
+    renderLog();
+  } catch(e) {
+    document.getElementById('logContainer').innerHTML = '<div class="empty-state">読み込みエラー</div>';
+  }
+}
+
+function renderLog() {
+  const q = document.getElementById('searchInput').value.toLowerCase();
+  let rows = allRows;
+  if (logFilter !== 'all') rows = rows.filter(r => r['セッション種類'] === logFilter);
+  if (q) rows = rows.filter(r =>
+    String(r['日付']).includes(q) ||
+    String(r['セッション種類']||'').toLowerCase().includes(q) ||
+    String(r['ファシリテーター']||'').toLowerCase().includes(q) ||
+    String(r['発言者']||'').toLowerCase().includes(q) ||
+    String(r['メモ']||'').toLowerCase().includes(q)
+  );
+
+  // グループ化（日付＋ファシリ＋種類）
+  const groups = {};
+  rows.forEach(r => {
+    const key = `${r['日付']}_${r['セッション種類']}_${r['ファシリテーター']}`;
+    if (!groups[key]) groups[key] = {
+      date: r['日付'], weekday: r['曜日'],
+      type: r['セッション種類'], fasiri: r['ファシリテーター'], utterances: []
+    };
+    groups[key].utterances.push({speaker: r['発言者'], memo: r['メモ']});
+  });
+
+  const keys = Object.keys(groups).reverse();
+  const container = document.getElementById('logContainer');
+  if (!keys.length) { container.innerHTML = '<div class="empty-state">記録がありません</div>'; return; }
+
+  container.innerHTML = keys.map(key => {
+    const g = groups[key];
+    const typeClass = g.type === '悟り' ? 'satori' : g.type === 'マスター' ? 'master' : g.type === 'ゆうand笑夢' ? 'yuu' : g.type === 'しゃべり場' ? 'shaberi' : '';
+    const typeEmoji = g.type === '悟り' ? '🌸' : g.type === 'マスター' ? '⭐' : g.type === 'ゆうand笑夢' ? '💜' : g.type === 'しゃべり場' ? '🎙️' : '';
+    const uttHtml = g.utterances.map(u => `
+      <div class="utterance-item">
+        <div class="ui-speaker">${escHtml(u.speaker)||'（名前なし）'}</div>
+        <div class="ui-memo">${escHtml(u.memo)}</div>
+      </div>`).join('');
+    return `
+      <div class="session-card collapsed ${typeClass}-card" onclick="this.classList.toggle('collapsed')">
+        <div class="sc-header">
+          <div>
+            <span class="sc-date">${escHtml(String(g.date))}</span>
+            <span class="weekday-badge">${escHtml(g.weekday||'')}曜</span>
+          </div>
+          <div class="sc-meta">
+            <span class="sc-type-badge ${typeClass}">${typeEmoji} ${escHtml(g.type||'')}</span>
+            <span class="sc-fasiri">🎤 ${escHtml(g.fasiri)}</span>
+          </div>
+        </div>
+        <div class="sc-hint">${g.utterances.length}件の発言 — タップで展開</div>
+        ${uttHtml}
+      </div>`;
+  }).join('');
+}
+
+// ══════════════════════════════════════════
+// Helpers
+// ══════════════════════════════════════════
+function escHtml(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+function toast(msg, type='') {
+  const el = document.getElementById('toast');
+  el.textContent = msg; el.className = `show ${type}`;
+  setTimeout(() => el.className = '', 3000);
+}
+
+// ══════════════════════════════════════════
+// 下書き自動保存・復元
+// ══════════════════════════════════════════
+const DRAFT_KEY = 'sasakijuku_draft';
+
+function saveDraft() {
+  const date = document.getElementById('recDate').value;
+  const fasiriVals = [...document.querySelectorAll('.fasiri-select')].map(s => s.value);
+  const utterances = [...document.querySelectorAll('.utterance-block')].map(b => ({
+    speaker: b.querySelector('.utt-speaker-select').value,
+    memo: b.querySelector('.utt-memo').value
+  }));
+  const draft = { date, sessionType: selectedType, fasiri: fasiriVals, utterances };
+  localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+}
+
+function clearDraft() {
+  localStorage.removeItem(DRAFT_KEY);
+}
+
+function restoreDraft() {
+  const raw = localStorage.getItem(DRAFT_KEY);
+  if (!raw) return;
+  try {
+    const draft = JSON.parse(raw);
+    if (!draft.utterances || draft.utterances.length === 0) return;
+
+    // 日付
+    if (draft.date) {
+      document.getElementById('recDate').value = draft.date;
+      document.getElementById('weekdayDisplay').textContent = `（${getWeekday(draft.date)}曜日）`;
+    }
+    // セッション種類
+    if (draft.sessionType) selectType(draft.sessionType);
+    // ファシリ（既存行に設定、2人目があれば追加）
+    const fasiriList = document.getElementById('fasiriList');
+    draft.fasiri.forEach((name, i) => {
+      if (i > 0) addFasiriRow();
+      const selects = fasiriList.querySelectorAll('.fasiri-select');
+      if (selects[i]) selects[i].value = name;
+    });
+    // 発言ブロック復元
+    document.getElementById('utteranceList').innerHTML = '';
+    uttCount = 0;
+    draft.utterances.forEach(u => {
+      addUtterance(false);
+      const blocks = document.querySelectorAll('.utterance-block');
+      const last = blocks[blocks.length - 1];
+      last.querySelector('.utt-speaker-select').value = u.speaker;
+      last.querySelector('.utt-memo').value = u.memo;
+    });
+
+    // 復元通知
+    const banner = document.createElement('div');
+    banner.style.cssText = 'background:rgba(79,156,249,.15);border:1px solid var(--accent);border-radius:8px;padding:10px 14px;font-size:12px;color:var(--accent);margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;';
+    banner.innerHTML = `📝 前回の入力途中のデータを復元しました <button onclick="clearDraft();this.parentElement.remove()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:12px;">クリア</button>`;
+    document.getElementById('panel-record').insertBefore(banner, document.getElementById('panel-record').firstChild);
+  } catch(e) { clearDraft(); }
+}
+
+// 入力のたびに下書き保存（500msデバウンス）
+let draftTimer = null;
+function scheduleDraft() {
+  clearTimeout(draftTimer);
+  draftTimer = setTimeout(saveDraft, 500);
+}
+document.addEventListener('input', e => {
+  if (document.getElementById('panel-record').classList.contains('active')) scheduleDraft();
+});
+document.addEventListener('change', e => {
+  if (document.getElementById('panel-record').classList.contains('active')) scheduleDraft();
+});
+
+// 保存成功時に下書きをクリア
+const _origSubmit = submitRecord;
+async function submitRecord() {
+  const url = getUrl();
+  if (!url) { switchTab('setup'); toast('先にGAS URLを設定してください','error'); return; }
+  if (!selectedType) { toast('セッション種類を選択してください','error'); return; }
+  const date = document.getElementById('recDate').value;
+  if (!date) { toast('日付を入力してください','error'); return; }
+  const fasiriVals = [...document.querySelectorAll('.fasiri-select')].map(s => s.value.trim()).filter(Boolean);
+  if (!fasiriVals.length) { toast('ファシリテーターを選択してください','error'); return; }
+  const fasiri = fasiriVals.join('・');
+  const uttBlocks = document.querySelectorAll('.utterance-block');
+  const utterances = [];
+  uttBlocks.forEach(b => {
+    const speaker = b.querySelector('.utt-speaker-select').value.trim();
+    const memo    = b.querySelector('.utt-memo').value.trim();
+    if (speaker || memo) utterances.push({speaker, memo});
+  });
+  if (!utterances.length) { toast('発言/メモを1件以上入力してください','error'); return; }
+  const payload = {date, weekday: getWeekday(date), sessionType: selectedType, fasiri, utterances};
+  const btn = document.getElementById('submitBtn');
+  btn.disabled = true; btn.textContent = '保存中…';
+  try {
+    await fetch(url, {
+      method:'POST', mode:'no-cors',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(payload)
+    });
+    clearDraft();
+    toast('保存しました ✓','success');
+    document.getElementById('utteranceList').innerHTML = '';
+    uttCount = 0;
+    selectType('');
+    addUtterance();
+    // 復元バナーがあれば消す
+    const banner = document.querySelector('#panel-record > div[style]');
+    if (banner) banner.remove();
+  } catch(e) { toast('エラー: '+e.message,'error'); }
+  finally { btn.disabled=false; btn.textContent='💾 スプレッドシートに保存'; }
+}
+
+// 離脱警告
+window.addEventListener('beforeunload', e => {
+  const uttBlocks = document.querySelectorAll('.utterance-block');
+  const hasInput = [...uttBlocks].some(b => b.querySelector('.utt-memo').value.trim());
+  if (hasInput) {
+    e.preventDefault();
+    e.returnValue = '';
+  }
+});
+
+// ══════════════════════════════════════════
+// Init
+// ══════════════════════════════════════════
+updateStatus();
+const saved = getUrl();
+if (saved) { document.getElementById('gasUrl').value = saved; loadMembers(); }
+addFasiriRow(true);
+addUtterance();
+// 下書きがあれば復元（メンバー読み込み後に実行）
+setTimeout(restoreDraft, 800);
+</script>
+</body>
+</html>
