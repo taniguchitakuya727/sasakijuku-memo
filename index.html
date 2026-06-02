@@ -376,7 +376,7 @@ select option { background: #1a1f35; }
 <div class="audio-player" id="audioPlayer">
   <div class="audio-top">
     <span class="audio-label" id="audioLabel">未選択</span>
-    <label class="audio-open-btn">音声を開く<input type="file" id="audioFile" accept=".mp3,.m4a,.wav,.aac,.ogg,.mp4,.mov" style="display:none" onchange="loadAudio(this)"></label>
+    <label class="audio-open-btn">音声を開く<input type="file" id="audioFile" accept="audio/*" style="display:none" onchange="loadAudio(this)"></label>
   </div>
   <div class="audio-main-row">
     <button class="audio-btn" onclick="seekAudio(-10)">⏪ 10</button>
@@ -450,11 +450,11 @@ select option { background: #1a1f35; }
 <!-- ════════ RECORD ════════ -->
 <div id="panel-record" class="panel">
 
-  <!-- セッション種類 + 日付（1行） -->
-  <div class="compact-header">
-    <div class="compact-type">
+  <!-- 種類 + 日付（1行） -->
+  <div style="display:flex;gap:8px;align-items:flex-start;margin-bottom:10px;">
+    <div style="flex:1;min-width:0;">
       <label class="form-label">種類</label>
-      <select id="sessionTypeSelect" onchange="selectType(this.value)">
+      <select id="sessionTypeSelect" onchange="selectType(this.value)" style="font-size:13px;">
         <option value="">-- 選択 --</option>
         <option value="悟り">🌸 悟り</option>
         <option value="マスター">⭐ マスター</option>
@@ -462,20 +462,19 @@ select option { background: #1a1f35; }
         <option value="しゃべり場">🎙️ しゃべり場</option>
       </select>
     </div>
-    <div class="compact-date">
+    <div style="flex-shrink:0;">
       <label class="form-label">日付</label>
-      <input type="date" id="recDate" style="padding:8px 10px;font-size:13px;" />
+      <input type="date" id="recDate" style="font-size:13px;padding:8px 10px;" />
       <div id="weekdayDisplay" style="font-size:11px;color:var(--muted);margin-top:3px;text-align:center;"></div>
     </div>
   </div>
 
-  <!-- ファシリテーター（コンパクト） -->
+  <!-- ファシリテーター -->
   <div class="form-section" style="margin-bottom:14px">
     <label class="form-label">ファシリテーター</label>
     <div id="fasiriList"></div>
     <button class="add-row-btn" id="addFasiriBtn" onclick="addFasiriRow()" style="padding:7px;font-size:12px;">＋ 2人目を追加</button>
   </div>
-
 
   <!-- 発言 / メモ -->
   <div class="form-section">
