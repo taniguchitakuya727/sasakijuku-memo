@@ -165,7 +165,67 @@ select option { background: #1a1f35; }
 }
 .next-utt-btn:hover { background: rgba(79,156,249,.08); border-color: var(--accent); }
 
-/* ── Submit ── */
+/* ── Audio Player（固定） ── */
+.audio-player {
+  background: #13172280; backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--border);
+  padding: 8px 14px; position: sticky; top: 0; z-index: 90;
+}
+.audio-top {
+  display: flex; justify-content: space-between; align-items: center; margin-bottom: 7px;
+}
+.audio-label { font-size: 11px; color: var(--muted); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-right: 8px; }
+.audio-open-btn {
+  background: var(--satori); color: #1a1400; font-size: 11px; font-weight: 700;
+  padding: 5px 12px; border-radius: 6px; cursor: pointer; white-space: nowrap; flex-shrink: 0;
+}
+.audio-main-row { display: flex; align-items: center; gap: 6px; margin-bottom: 7px; }
+.audio-btn {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 7px;
+  color: var(--text); font-size: 12px; padding: 5px 10px; cursor: pointer; font-family: inherit;
+  transition: all .2s; white-space: nowrap;
+}
+.audio-btn:hover { border-color: var(--accent); color: var(--accent); }
+.play-btn {
+  width: 34px; height: 34px; border-radius: 50%; padding: 0; flex-shrink: 0;
+  background: var(--satori); border-color: var(--satori); color: #1a1400;
+  font-size: 14px; display: flex; align-items: center; justify-content: center;
+}
+.play-btn:hover { opacity: .85; color: #1a1400; border-color: var(--satori); }
+.speed-btns { display: flex; gap: 4px; margin-left: 2px; }
+.speed-btn {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 20px;
+  color: var(--muted); font-size: 10px; padding: 4px 8px; cursor: pointer; font-family: inherit;
+  white-space: nowrap;
+}
+.speed-btn.active { border-color: var(--satori); color: var(--satori); }
+.audio-seek-row {
+  display: flex; align-items: center; gap: 6px;
+}
+.audio-seek-row input[type="range"] {
+  flex: 1; -webkit-appearance: none; height: 3px; border-radius: 2px;
+  background: var(--border); outline: none; padding: 0; border: none; min-width: 0;
+}
+.audio-seek-row input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 12px; height: 12px; border-radius: 50%;
+  background: var(--satori); cursor: pointer;
+}
+.audio-seek-row span { font-size: 10px; color: var(--muted); font-family: 'DM Mono', monospace; white-space: nowrap; }
+
+/* 音声なし時は折りたたみ */
+.audio-player.no-audio .audio-main-row,
+.audio-player.no-audio .audio-seek-row { display: none; }
+
+/* ── 発言者ワンタップボタン ── */
+.speaker-btns { display: flex; flex-wrap: wrap; gap: 7px; }
+.speaker-quick-btn {
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 20px; color: var(--text); font-size: 13px;
+  padding: 6px 14px; cursor: pointer; font-family: inherit;
+  transition: all .15s; font-weight: 500;
+}
+.speaker-quick-btn:hover  { border-color: var(--accent2); color: var(--accent2); }
+.speaker-quick-btn:active { background: rgba(124,92,191,.2); transform: scale(.96); }
 .submit-btn {
   width: 100%; background: linear-gradient(135deg, var(--accent), var(--accent2));
   border: none; border-radius: var(--radius);
@@ -322,6 +382,32 @@ select option { background: #1a1f35; }
   <button class="tab-btn"         onclick="switchTab('members')">👥 メンバー</button>
 </div>
 
+<!-- ════════ 固定音声プレイヤー ════════ -->
+<div class="audio-player" id="audioPlayer">
+  <div class="audio-top">
+    <span class="audio-label" id="audioLabel">未選択</span>
+    <label class="audio-open-btn">音声を開く<input type="file" id="audioFile" accept="audio/*" style="display:none" onchange="loadAudio(this)"></label>
+  </div>
+  <div class="audio-main-row">
+    <button class="audio-btn" onclick="seekAudio(-10)">⏪ 10</button>
+    <button class="audio-btn play-btn" id="playBtn" onclick="togglePlay()">▶</button>
+    <button class="audio-btn" onclick="seekAudio(10)">10 ⏩</button>
+    <div class="speed-btns">
+      <button class="speed-btn active" onclick="setSpeed(1,this)">1×</button>
+      <button class="speed-btn" onclick="setSpeed(1.25,this)">1.25×</button>
+      <button class="speed-btn" onclick="setSpeed(1.5,this)">1.5×</button>
+      <button class="speed-btn" onclick="setSpeed(2,this)">2×</button>
+    </div>
+  </div>
+  <div class="audio-seek-row">
+    <input type="range" id="seekBar" value="0" min="0" step="0.1" oninput="seekTo(this.value)">
+    <span id="curTime">00:00</span>
+    <span style="color:var(--border)">／</span>
+    <span id="durTime">00:00</span>
+  </div>
+  <audio id="audioEl"></audio>
+</div>
+
 <!-- ════════ SETUP ════════ -->
 <div id="panel-setup" class="panel active">
   <div class="card">
@@ -374,36 +460,41 @@ select option { background: #1a1f35; }
 <!-- ════════ RECORD ════════ -->
 <div id="panel-record" class="panel">
 
-  <!-- セッション種類 -->
-  <div class="form-section">
-    <label class="form-label">セッション種類</label>
-    <div class="session-type-row">
-      <button class="type-pill satori" id="pill-satori" onclick="selectType('悟り')">🌸 悟り</button>
-      <button class="type-pill master" id="pill-master" onclick="selectType('マスター')">⭐ マスター</button>
+  <!-- セッション種類 + 日付（1行） -->
+  <div class="compact-header">
+    <div class="compact-type">
+      <label class="form-label">種類</label>
+      <select id="sessionTypeSelect" onchange="selectType(this.value)">
+        <option value="">-- 選択 --</option>
+        <option value="悟り">🌸 悟り</option>
+        <option value="マスター">⭐ マスター</option>
+        <option value="ゆうand笑夢">💜 ゆうand笑夢</option>
+        <option value="しゃべり場">🎙️ しゃべり場</option>
+      </select>
     </div>
-    <div class="session-type-row" style="margin-top:8px">
-      <button class="type-pill yuu"     id="pill-yuu"     onclick="selectType('ゆうand笑夢')">💜 ゆうand笑夢</button>
-      <button class="type-pill shaberi" id="pill-shaberi" onclick="selectType('しゃべり場')">🎙️ しゃべり場</button>
+    <div class="compact-date">
+      <label class="form-label">日付</label>
+      <input type="date" id="recDate" style="padding:8px 10px;font-size:13px;" />
+      <div id="weekdayDisplay" style="font-size:11px;color:var(--muted);margin-top:3px;text-align:center;"></div>
     </div>
   </div>
 
-  <!-- 日付 -->
-  <div class="form-section">
-    <label class="form-label">日付</label>
-    <input type="date" id="recDate" />
-    <div id="weekdayDisplay" style="font-size:12px;color:var(--muted);margin-top:5px;"></div>
-  </div>
-
-  <!-- ファシリテーター -->
-  <div class="form-section">
+  <!-- ファシリテーター（コンパクト） -->
+  <div class="form-section" style="margin-bottom:14px">
     <label class="form-label">ファシリテーター</label>
     <div id="fasiriList"></div>
-    <button class="add-row-btn" id="addFasiriBtn" onclick="addFasiriRow()">＋ 2人目を追加</button>
+    <button class="add-row-btn" id="addFasiriBtn" onclick="addFasiriRow()" style="padding:7px;font-size:12px;">＋ 2人目を追加</button>
+  </div>
+
+  <!-- 発言者ワンタップボタン -->
+  <div class="form-section" style="margin-bottom:10px">
+    <label class="form-label">発言者をタップして追加</label>
+    <div id="speakerBtns" class="speaker-btns"></div>
   </div>
 
   <!-- 発言 / メモ -->
   <div class="form-section">
-    <label class="form-label">発言 / メモ</label>
+    <label class="form-label">発言 / メモ <span style="color:var(--muted);font-size:10px;font-weight:400;text-transform:none;">Space=再生停止　←→=10秒</span></label>
     <div id="utteranceList"></div>
     <button class="next-utt-btn" onclick="addUtterance(true)">＋ 次の発言者</button>
   </div>
@@ -584,6 +675,7 @@ async function loadMembers() {
     members = data.members || [];
     renderMemberList();
     refreshSelects();
+    renderSpeakerBtns();
   } catch(e) { console.warn('members load failed', e); }
 }
 
@@ -686,11 +778,10 @@ function refreshSelects() {
 // ══════════════════════════════════════════
 function selectType(type) {
   selectedType = type;
-  document.getElementById('pill-satori').classList.toggle('selected',  type === '悟り');
-  document.getElementById('pill-master').classList.toggle('selected',  type === 'マスター');
-  document.getElementById('pill-yuu').classList.toggle('selected',     type === 'ゆうand笑夢');
-  document.getElementById('pill-shaberi').classList.toggle('selected', type === 'しゃべり場');
+  const sel = document.getElementById('sessionTypeSelect');
+  if (sel && sel.value !== type) sel.value = type;
   refreshSelects();
+  renderSpeakerBtns();
 }
 
 // ══════════════════════════════════════════
@@ -896,7 +987,109 @@ function toast(msg, type='') {
 }
 
 // ══════════════════════════════════════════
-// 下書き自動保存・復元
+// Audio Player
+// ══════════════════════════════════════════
+function loadAudio(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const audio = document.getElementById('audioEl');
+  audio.src = URL.createObjectURL(file);
+  document.getElementById('audioLabel').textContent = file.name;
+  document.getElementById('audioPlayer').classList.remove('no-audio');
+  audio.addEventListener('loadedmetadata', () => {
+    document.getElementById('seekBar').max = audio.duration;
+    document.getElementById('durTime').textContent = fmtTime(audio.duration);
+  });
+  audio.addEventListener('timeupdate', () => {
+    document.getElementById('seekBar').value = audio.currentTime;
+    document.getElementById('curTime').textContent = fmtTime(audio.currentTime);
+  });
+  audio.addEventListener('ended', () => {
+    document.getElementById('playBtn').textContent = '▶';
+  });
+}
+function togglePlay() {
+  const audio = document.getElementById('audioEl');
+  if (!audio.src) return;
+  if (audio.paused) {
+    audio.play();
+    document.getElementById('playBtn').textContent = '⏸';
+  } else {
+    audio.pause();
+    document.getElementById('playBtn').textContent = '▶';
+  }
+}
+function seekAudio(sec) {
+  const audio = document.getElementById('audioEl');
+  audio.currentTime = Math.max(0, Math.min(audio.duration || 0, audio.currentTime + sec));
+}
+function seekTo(val) {
+  document.getElementById('audioEl').currentTime = val;
+}
+function setSpeed(rate, btn) {
+  document.getElementById('audioEl').playbackRate = rate;
+  document.querySelectorAll('.speed-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
+function fmtTime(sec) {
+  if (isNaN(sec)) return '00:00';
+  const m = Math.floor(sec / 60);
+  const s = Math.floor(sec % 60);
+  return `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+}
+
+// ── キーボードショートカット ──
+document.addEventListener('keydown', e => {
+  // textarea/inputにフォーカス中は無効
+  const tag = document.activeElement.tagName;
+  if (tag === 'TEXTAREA' || tag === 'INPUT' || tag === 'SELECT') return;
+  if (e.code === 'Space') { e.preventDefault(); togglePlay(); }
+  if (e.code === 'ArrowLeft')  { e.preventDefault(); seekAudio(-10); }
+  if (e.code === 'ArrowRight') { e.preventDefault(); seekAudio(10); }
+});
+
+// ── 発言者ワンタップボタン ──
+function renderSpeakerBtns() {
+  const container = document.getElementById('speakerBtns');
+  if (!container) return;
+  // セッション種類に応じてフィルタ
+  const spFilter = getSpeakerFilter();
+  let list;
+  if (spFilter === 'speaker-satori') {
+    list = members.filter(m => m.role === 'satori' || m.role === 'master' || m.role === 'fasiri');
+  } else if (spFilter === 'speaker-master') {
+    list = members.filter(m => m.role === 'master' || m.role === 'fasiri');
+  } else {
+    list = members;
+  }
+  if (!list.length) {
+    container.innerHTML = '<span style="font-size:12px;color:var(--muted)">メンバーを登録すると表示されます</span>';
+    return;
+  }
+  container.innerHTML = list.map(m =>
+    `<button class="speaker-quick-btn" onclick="addUtteranceWithSpeaker('${escHtml(m.name)}')">${escHtml(m.name)}</button>`
+  ).join('');
+}
+
+function addUtteranceWithSpeaker(name) {
+  uttCount++;
+  const id = uttCount;
+  const div = document.createElement('div');
+  div.className = 'utterance-block'; div.id = `utt-${id}`;
+  div.innerHTML = `
+    <div class="utt-speaker-row">
+      <select class="utt-speaker-select">${buildOptions(getSpeakerFilter(), name)}</select>
+      <button class="utt-del-btn" onclick="document.getElementById('utt-${id}').remove()">✕</button>
+    </div>
+    <textarea class="utt-memo" placeholder="発言内容・気づき…"></textarea>`;
+  document.getElementById('utteranceList').appendChild(div);
+  div.querySelector('.utt-memo').addEventListener('keydown', e => {
+    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') { e.preventDefault(); addUtterance(true); }
+  });
+  setTimeout(() => div.querySelector('.utt-memo').focus(), 50);
+}
+
+// ══════════════════════════════════════════
 // ══════════════════════════════════════════
 const DRAFT_KEY = 'sasakijuku_draft';
 
@@ -1000,6 +1193,7 @@ async function submitRecord() {
     toast('保存しました ✓','success');
     document.getElementById('utteranceList').innerHTML = '';
     uttCount = 0;
+    document.getElementById('sessionTypeSelect').value = '';
     selectType('');
     addUtterance();
     // 復元バナーがあれば消す
@@ -1025,9 +1219,9 @@ window.addEventListener('beforeunload', e => {
 updateStatus();
 const saved = getUrl();
 if (saved) { document.getElementById('gasUrl').value = saved; loadMembers(); }
+document.getElementById('audioPlayer').classList.add('no-audio');
 addFasiriRow(true);
 addUtterance();
-// 下書きがあれば復元（メンバー読み込み後に実行）
 setTimeout(restoreDraft, 800);
 </script>
 </body>
