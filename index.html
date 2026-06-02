@@ -376,7 +376,7 @@ select option { background: #1a1f35; }
 <div class="audio-player" id="audioPlayer">
   <div class="audio-top">
     <span class="audio-label" id="audioLabel">未選択</span>
-    <label class="audio-open-btn">音声を開く<input type="file" id="audioFile" accept="audio/*" style="display:none" onchange="loadAudio(this)"></label>
+    <label class="audio-open-btn">音声を開く<input type="file" id="audioFile" accept=".mp3,.m4a,.wav,.aac,.ogg,.mp4,.mov" style="display:none" onchange="loadAudio(this)"></label>
   </div>
   <div class="audio-main-row">
     <button class="audio-btn" onclick="seekAudio(-10)">⏪ 10</button>
@@ -475,6 +475,7 @@ select option { background: #1a1f35; }
     <div id="fasiriList"></div>
     <button class="add-row-btn" id="addFasiriBtn" onclick="addFasiriRow()" style="padding:7px;font-size:12px;">＋ 2人目を追加</button>
   </div>
+
 
   <!-- 発言 / メモ -->
   <div class="form-section">
@@ -1029,6 +1030,7 @@ document.addEventListener('keydown', e => {
   if (e.code === 'ArrowLeft')  { e.preventDefault(); seekAudio(-10); }
   if (e.code === 'ArrowRight') { e.preventDefault(); seekAudio(10); }
 });
+
 
 // ══════════════════════════════════════════
 // ══════════════════════════════════════════
