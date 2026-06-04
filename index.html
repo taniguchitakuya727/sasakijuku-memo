@@ -216,6 +216,16 @@ select option { background: #1a1f35; }
 .audio-player.no-audio .audio-main-row,
 .audio-player.no-audio .audio-seek-row { display: none; }
 
+/* ── 発言者ワンタップボタン ── */
+.speaker-btns { display: flex; flex-wrap: wrap; gap: 7px; }
+.speaker-quick-btn {
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 20px; color: var(--text); font-size: 13px;
+  padding: 6px 14px; cursor: pointer; font-family: inherit;
+  transition: all .15s; font-weight: 500;
+}
+.speaker-quick-btn:hover  { border-color: var(--accent2); color: var(--accent2); }
+.speaker-quick-btn:active { background: rgba(124,92,191,.2); transform: scale(.96); }
 .submit-btn {
   width: 100%; background: linear-gradient(135deg, var(--accent), var(--accent2));
   border: none; border-radius: var(--radius);
@@ -376,7 +386,7 @@ select option { background: #1a1f35; }
 <div class="audio-player" id="audioPlayer">
   <div class="audio-top">
     <span class="audio-label" id="audioLabel">未選択</span>
-    <label class="audio-open-btn">音声を開く<input type="file" id="audioFile" accept="audio/*" style="display:none" onchange="loadAudio(this)"></label>
+    <label class="audio-open-btn">音声を開く<input type="file" id="audioFile" style="display:none" onchange="loadAudio(this)"></label>
   </div>
   <div class="audio-main-row">
     <button class="audio-btn" onclick="seekAudio(-10)">⏪ 10</button>
@@ -474,6 +484,12 @@ select option { background: #1a1f35; }
     <label class="form-label">ファシリテーター</label>
     <div id="fasiriList"></div>
     <button class="add-row-btn" id="addFasiriBtn" onclick="addFasiriRow()" style="padding:7px;font-size:12px;">＋ 2人目を追加</button>
+  </div>
+
+  <!-- 発言者ワンタップボタン -->
+  <div class="form-section" style="margin-bottom:10px">
+    <label class="form-label">発言者をタップして追加</label>
+    <div id="speakerBtns" class="speaker-btns"></div>
   </div>
 
   <!-- 発言 / メモ -->
@@ -659,6 +675,7 @@ async function loadMembers() {
     members = data.members || [];
     renderMemberList();
     refreshSelects();
+    renderSpeakerBtns();
   } catch(e) { console.warn('members load failed', e); }
 }
 
@@ -764,6 +781,7 @@ function selectType(type) {
   const sel = document.getElementById('sessionTypeSelect');
   if (sel && sel.value !== type) sel.value = type;
   refreshSelects();
+  renderSpeakerBtns();
 }
 
 // ══════════════════════════════════════════
@@ -1029,6 +1047,47 @@ document.addEventListener('keydown', e => {
   if (e.code === 'ArrowLeft')  { e.preventDefault(); seekAudio(-10); }
   if (e.code === 'ArrowRight') { e.preventDefault(); seekAudio(10); }
 });
+
+// ── 発言者ワンタップボタン ──
+function renderSpeakerBtns() {
+  const container = document.getElementById('speakerBtns');
+  if (!container) return;
+  // セッション種類に応じてフィルタ
+  const spFilter = getSpeakerFilter();
+  let list;
+  if (spFilter === 'speaker-satori') {
+    list = members.filter(m => m.role === 'satori' || m.role === 'master' || m.role === 'fasiri');
+  } else if (spFilter === 'speaker-master') {
+    list = members.filter(m => m.role === 'master' || m.role === 'fasiri');
+  } else {
+    list = members;
+  }
+  if (!list.length) {
+    container.innerHTML = '<span style="font-size:12px;color:var(--muted)">メンバーを登録すると表示されます</span>';
+    return;
+  }
+  container.innerHTML = list.map(m =>
+    `<button class="speaker-quick-btn" onclick="addUtteranceWithSpeaker('${escHtml(m.name)}')">${escHtml(m.name)}</button>`
+  ).join('');
+}
+
+function addUtteranceWithSpeaker(name) {
+  uttCount++;
+  const id = uttCount;
+  const div = document.createElement('div');
+  div.className = 'utterance-block'; div.id = `utt-${id}`;
+  div.innerHTML = `
+    <div class="utt-speaker-row">
+      <select class="utt-speaker-select">${buildOptions(getSpeakerFilter(), name)}</select>
+      <button class="utt-del-btn" onclick="document.getElementById('utt-${id}').remove()">✕</button>
+    </div>
+    <textarea class="utt-memo" placeholder="発言内容・気づき…"></textarea>`;
+  document.getElementById('utteranceList').appendChild(div);
+  div.querySelector('.utt-memo').addEventListener('keydown', e => {
+    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') { e.preventDefault(); addUtterance(true); }
+  });
+  setTimeout(() => div.querySelector('.utt-memo').focus(), 50);
+}
 
 // ══════════════════════════════════════════
 // ══════════════════════════════════════════
