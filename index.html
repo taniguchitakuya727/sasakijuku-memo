@@ -461,10 +461,10 @@ select option { background: #1a1f35; }
 <div id="panel-record" class="panel">
 
   <!-- セッション種類 + 日付（1行） -->
-  <div class="compact-header">
-    <div class="compact-type">
+  <div style="display:flex;gap:8px;align-items:flex-start;margin-bottom:12px;">
+    <div style="flex:1;min-width:0;">
       <label class="form-label">種類</label>
-      <select id="sessionTypeSelect" onchange="selectType(this.value)">
+      <select id="sessionTypeSelect" onchange="selectType(this.value)" style="font-size:13px;">
         <option value="">-- 選択 --</option>
         <option value="悟り">🌸 悟り</option>
         <option value="マスター">⭐ マスター</option>
@@ -472,7 +472,7 @@ select option { background: #1a1f35; }
         <option value="しゃべり場">🎙️ しゃべり場</option>
       </select>
     </div>
-    <div class="compact-date">
+    <div style="flex-shrink:0;">
       <label class="form-label">日付</label>
       <input type="date" id="recDate" style="padding:8px 10px;font-size:13px;" />
       <div id="weekdayDisplay" style="font-size:11px;color:var(--muted);margin-top:3px;text-align:center;"></div>
@@ -484,8 +484,6 @@ select option { background: #1a1f35; }
     <label class="form-label">ファシリテーター</label>
     <div id="fasiriList"></div>
     <button class="add-row-btn" id="addFasiriBtn" onclick="addFasiriRow()" style="padding:7px;font-size:12px;">＋ 2人目を追加</button>
-  </div>
-
   </div>
 
   <!-- 発言 / メモ -->
