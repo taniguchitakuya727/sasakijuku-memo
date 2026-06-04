@@ -169,7 +169,7 @@ select option { background: #1a1f35; }
 .audio-player {
   background: #13172280; backdrop-filter: blur(10px);
   border-bottom: 1px solid var(--border);
-  padding: 8px 14px; position: sticky; top: 0; z-index: 90;
+  padding: 8px 14px; position: sticky; top: 0; z-index: 90; display: none;
 }
 .audio-top {
   display: flex; justify-content: space-between; align-items: center; margin-bottom: 7px;
@@ -461,10 +461,10 @@ select option { background: #1a1f35; }
 <div id="panel-record" class="panel">
 
   <!-- セッション種類 + 日付（1行） -->
-  <div style="display:flex;gap:8px;align-items:flex-start;margin-bottom:12px;">
-    <div style="flex:1;min-width:0;">
+  <div class="compact-header">
+    <div class="compact-type">
       <label class="form-label">種類</label>
-      <select id="sessionTypeSelect" onchange="selectType(this.value)" style="font-size:13px;">
+      <select id="sessionTypeSelect" onchange="selectType(this.value)">
         <option value="">-- 選択 --</option>
         <option value="悟り">🌸 悟り</option>
         <option value="マスター">⭐ マスター</option>
@@ -472,7 +472,7 @@ select option { background: #1a1f35; }
         <option value="しゃべり場">🎙️ しゃべり場</option>
       </select>
     </div>
-    <div style="flex-shrink:0;">
+    <div class="compact-date">
       <label class="form-label">日付</label>
       <input type="date" id="recDate" style="padding:8px 10px;font-size:13px;" />
       <div id="weekdayDisplay" style="font-size:11px;color:var(--muted);margin-top:3px;text-align:center;"></div>
@@ -485,7 +485,8 @@ select option { background: #1a1f35; }
     <div id="fasiriList"></div>
     <button class="add-row-btn" id="addFasiriBtn" onclick="addFasiriRow()" style="padding:7px;font-size:12px;">＋ 2人目を追加</button>
   </div>
-</div>
+
+  </div>
 
   <!-- 発言 / メモ -->
   <div class="form-section">
@@ -1043,6 +1044,24 @@ document.addEventListener('keydown', e => {
 });
 
 
+function addUtteranceWithSpeaker(name) {
+  uttCount++;
+  const id = uttCount;
+  const div = document.createElement('div');
+  div.className = 'utterance-block'; div.id = `utt-${id}`;
+  div.innerHTML = `
+    <div class="utt-speaker-row">
+      <select class="utt-speaker-select">${buildOptions(getSpeakerFilter(), name)}</select>
+      <button class="utt-del-btn" onclick="document.getElementById('utt-${id}').remove()">✕</button>
+    </div>
+    <textarea class="utt-memo" placeholder="発言内容・気づき…"></textarea>`;
+  document.getElementById('utteranceList').appendChild(div);
+  div.querySelector('.utt-memo').addEventListener('keydown', e => {
+    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') { e.preventDefault(); addUtterance(true); }
+  });
+  setTimeout(() => div.querySelector('.utt-memo').focus(), 50);
+}
+
 // ══════════════════════════════════════════
 // ══════════════════════════════════════════
 const DRAFT_KEY = 'sasakijuku_draft';
@@ -1174,7 +1193,6 @@ updateStatus();
 const saved = getUrl();
 if (saved) { document.getElementById('gasUrl').value = saved; loadMembers(); }
 document.getElementById('audioPlayer').classList.add('no-audio');
-document.getElementById('audioPlayer').style.display = 'none';
 addFasiriRow(true);
 addUtterance();
 setTimeout(restoreDraft, 800);
