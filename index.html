@@ -169,7 +169,7 @@ select option { background: #1a1f35; }
 .audio-player {
   background: #13172280; backdrop-filter: blur(10px);
   border-bottom: 1px solid var(--border);
-  padding: 8px 14px; position: sticky; top: 0; z-index: 90; display: none;
+  padding: 8px 14px; margin-bottom: 12px; border-radius: 10px; border: 1px solid var(--border);
 }
 .audio-top {
   display: flex; justify-content: space-between; align-items: center; margin-bottom: 7px;
@@ -382,7 +382,10 @@ select option { background: #1a1f35; }
   <button class="tab-btn"         onclick="switchTab('members')">👥 メンバー</button>
 </div>
 
-<!-- ════════ 固定音声プレイヤー ════════ -->
+<!-- ════════ RECORD ════════ -->
+<div id="panel-record" class="panel">
+
+<!-- 音声プレイヤー -->
 <div class="audio-player" id="audioPlayer">
   <div class="audio-top">
     <span class="audio-label" id="audioLabel">未選択</span>
@@ -456,9 +459,6 @@ select option { background: #1a1f35; }
     </div>
   </div>
 </div>
-
-<!-- ════════ RECORD ════════ -->
-<div id="panel-record" class="panel">
 
   <!-- セッション種類 + 日付（1行） -->
   <div style="display:flex;gap:8px;align-items:flex-start;margin-bottom:12px;">
@@ -652,7 +652,6 @@ const TAB_NAMES = ['setup','record','log','members'];
 function switchTab(name) {
   document.querySelectorAll('.tab-btn').forEach((b,i) => b.classList.toggle('active', TAB_NAMES[i] === name));
   document.querySelectorAll('.panel').forEach(p => p.classList.toggle('active', p.id === `panel-${name}`));
-  document.getElementById('audioPlayer').style.display = name === 'record' ? '' : 'none';
   if (name === 'log')     loadLog();
   if (name === 'members') renderMemberList();
   if (name === 'record')  refreshSelects();
