@@ -386,7 +386,7 @@ select option { background: #1a1f35; }
 <div class="audio-player" id="audioPlayer" style="display:none">
   <div class="audio-top">
     <span class="audio-label" id="audioLabel">未選択</span>
-    <label class="audio-open-btn">音声を開く<input type="file" id="audioFile" style="display:none" onchange="loadAudio(this)"></label>
+    <label class="audio-open-btn">音声を開く<input type="file" id="audioFile" style="display:none" onchange="loadAudio(this,0)"></label>
   </div>
   <div class="audio-main-row">
     <button class="audio-btn" onclick="seekAudio(-10)">⏪ 10</button>
@@ -754,16 +754,29 @@ function getSpeakerFilter() {
 }
 
 function refreshSelects() {
-  // ファシリ
+  // ファシリ：現在値を保持して再構築
   document.querySelectorAll('.fasiri-select').forEach(sel => {
     const cur = sel.value;
     sel.innerHTML = buildOptions('fasiri', cur);
+    // membersにない値（ロード前の一時値）も失わないよう保持
+    if (cur && sel.value !== cur) {
+      const opt = document.createElement('option');
+      opt.value = cur; opt.textContent = cur;
+      sel.appendChild(opt);
+      sel.value = cur;
+    }
   });
   // 発言者（セッション種類に応じて絞り込む）
   const spFilter = getSpeakerFilter();
   document.querySelectorAll('.utt-speaker-select').forEach(sel => {
     const cur = sel.value;
     sel.innerHTML = buildOptions(spFilter, cur);
+    if (cur && sel.value !== cur) {
+      const opt = document.createElement('option');
+      opt.value = cur; opt.textContent = cur;
+      sel.appendChild(opt);
+      sel.value = cur;
+    }
   });
 }
 
@@ -982,25 +995,47 @@ function toast(msg, type='') {
 // ══════════════════════════════════════════
 // Audio Player
 // ══════════════════════════════════════════
-function loadAudio(input) {
+let _audioRestorePosition = 0; // 復元すべき再生位置（秒）
+
+function loadAudio(input, restorePosition = 0) {
   const file = input.files[0];
   if (!file) return;
   const audio = document.getElementById('audioEl');
   audio.src = URL.createObjectURL(file);
   document.getElementById('audioLabel').textContent = file.name;
   document.getElementById('audioPlayer').classList.remove('no-audio');
+
+  // 音声ファイル名・再生位置を下書きに保存するため通知
+  _currentAudioFileName = file.name;
+
   audio.addEventListener('loadedmetadata', () => {
     document.getElementById('seekBar').max = audio.duration;
     document.getElementById('durTime').textContent = fmtTime(audio.duration);
+    // 復元位置にシーク
+    if (restorePosition > 0) {
+      audio.currentTime = Math.min(restorePosition, audio.duration);
+    }
   });
   audio.addEventListener('timeupdate', () => {
     document.getElementById('seekBar').value = audio.currentTime;
     document.getElementById('curTime').textContent = fmtTime(audio.currentTime);
+    // 再生位置を下書きに定期保存（1秒ごと）
+    if (Math.floor(audio.currentTime) !== _lastSavedAudioSec) {
+      _lastSavedAudioSec = Math.floor(audio.currentTime);
+      scheduleDraft();
+    }
   });
   audio.addEventListener('ended', () => {
     document.getElementById('playBtn').textContent = '▶';
   });
+
+  // 音声バナーがあれば消す
+  const audioBanner = document.getElementById('audioDraftBanner');
+  if (audioBanner) audioBanner.remove();
 }
+
+let _currentAudioFileName = null;
+let _lastSavedAudioSec = -1;
 function togglePlay() {
   const audio = document.getElementById('audioEl');
   if (!audio.src) return;
@@ -1071,7 +1106,14 @@ function saveDraft() {
     speaker: b.querySelector('.utt-speaker-select').value,
     memo: b.querySelector('.utt-memo').value
   }));
-  const draft = { date, sessionType: selectedType, fasiri: fasiriVals, utterances };
+  const audio = document.getElementById('audioEl');
+  const audioPosition = (audio.src && !audio.paused) || audio.currentTime > 0
+    ? Math.floor(audio.currentTime) : 0;
+  const draft = {
+    date, sessionType: selectedType, fasiri: fasiriVals, utterances,
+    audioFileName: _currentAudioFileName || null,
+    audioPosition
+  };
   localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
 }
 
@@ -1093,13 +1135,24 @@ function restoreDraft() {
     }
     // セッション種類
     if (draft.sessionType) selectType(draft.sessionType);
-    // ファシリ（既存行に設定、2人目があれば追加）
-    const fasiriList = document.getElementById('fasiriList');
-    draft.fasiri.forEach((name, i) => {
-      if (i > 0) addFasiriRow();
-      const selects = fasiriList.querySelectorAll('.fasiri-select');
-      if (selects[i]) selects[i].value = name;
-    });
+
+    // ファシリ復元（membersがまだロードされていない場合も一時オプションで対応）
+    if (draft.fasiri && draft.fasiri.length > 0) {
+      const fasiriList = document.getElementById('fasiriList');
+      draft.fasiri.forEach((name, i) => {
+        if (i > 0) addFasiriRow();
+        const selects = fasiriList.querySelectorAll('.fasiri-select');
+        if (selects[i] && name) {
+          if (![...selects[i].options].some(o => o.value === name)) {
+            const opt = document.createElement('option');
+            opt.value = name; opt.textContent = name;
+            selects[i].appendChild(opt);
+          }
+          selects[i].value = name;
+        }
+      });
+    }
+
     // 発言ブロック復元
     document.getElementById('utteranceList').innerHTML = '';
     uttCount = 0;
@@ -1107,15 +1160,38 @@ function restoreDraft() {
       addUtterance(false);
       const blocks = document.querySelectorAll('.utterance-block');
       const last = blocks[blocks.length - 1];
-      last.querySelector('.utt-speaker-select').value = u.speaker;
+      const sel = last.querySelector('.utt-speaker-select');
+      if (u.speaker && ![...sel.options].some(o => o.value === u.speaker)) {
+        const opt = document.createElement('option');
+        opt.value = u.speaker; opt.textContent = u.speaker;
+        sel.appendChild(opt);
+      }
+      sel.value = u.speaker;
       last.querySelector('.utt-memo').value = u.memo;
     });
 
-    // 復元通知
+    // 復元通知バナー
     const banner = document.createElement('div');
     banner.style.cssText = 'background:rgba(79,156,249,.15);border:1px solid var(--accent);border-radius:8px;padding:10px 14px;font-size:12px;color:var(--accent);margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;';
     banner.innerHTML = `📝 前回の入力途中のデータを復元しました <button onclick="clearDraft();this.parentElement.remove()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:12px;">クリア</button>`;
     document.getElementById('panel-record').insertBefore(banner, document.getElementById('panel-record').firstChild);
+
+    // 音声バナー（前回音声ファイルが開かれていた場合）
+    if (draft.audioFileName) {
+      const pos = draft.audioPosition || 0;
+      const posLabel = pos > 0 ? `（${fmtTime(pos)} から再開）` : '';
+      const audioBanner = document.createElement('div');
+      audioBanner.id = 'audioDraftBanner';
+      audioBanner.style.cssText = 'background:rgba(249,201,79,.1);border:1px solid var(--satori);border-radius:8px;padding:10px 14px;font-size:12px;color:var(--satori);margin-bottom:14px;';
+      audioBanner.innerHTML =
+        `🎵 前回「${escHtml(draft.audioFileName)}」を再生していました${escHtml(posLabel)}<br>` +
+        `<label style="display:inline-block;margin-top:6px;cursor:pointer;background:var(--satori);color:#1a1400;font-weight:700;padding:4px 12px;border-radius:6px;font-size:11px;">` +
+        `同じファイルを選択して再開` +
+        `<input type="file" style="display:none" onchange="loadAudio(this,${pos})">` +
+        `</label>` +
+        `<button onclick="this.parentElement.remove()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:12px;float:right;">✕</button>`;
+      document.getElementById('panel-record').insertBefore(audioBanner, document.getElementById('panel-record').firstChild);
+    }
   } catch(e) { clearDraft(); }
 }
 
