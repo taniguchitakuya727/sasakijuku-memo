@@ -256,6 +256,7 @@ select option { background: #1a1f35; }
 .filter-chip.master.active  { border-color: var(--master);  color: var(--master);  background: rgba(79,249,201,.1); }
 .filter-chip.yuu.active     { border-color: var(--yuu);     color: var(--yuu);     background: rgba(249,123,255,.1); }
 .filter-chip.shaberi.active { border-color: var(--shaberi); color: var(--shaberi); background: rgba(255,154,79,.1); }
+.filter-chip.accent.active  { border-color: var(--accent);  color: var(--accent);  background: rgba(79,156,249,.1); }
 
 .session-card {
   background: var(--surface); border: 1px solid var(--border);
@@ -267,6 +268,7 @@ select option { background: #1a1f35; }
 .session-card.master-card  { border-left: 3px solid var(--master); }
 .session-card.yuu-card     { border-left: 3px solid var(--yuu); }
 .session-card.shaberi-card { border-left: 3px solid var(--shaberi); }
+.session-card.accent-card  { border-left: 3px solid var(--accent); }
 .sc-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px; }
 .sc-date { font-size: 13px; font-weight: 700; color: var(--accent); font-family: 'DM Mono', monospace; }
 .sc-meta { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; }
@@ -278,6 +280,7 @@ select option { background: #1a1f35; }
 .sc-type-badge.master  { background: rgba(79,249,201,.15);  color: var(--master); }
 .sc-type-badge.yuu     { background: rgba(249,123,255,.15); color: var(--yuu); }
 .sc-type-badge.shaberi { background: rgba(255,154,79,.15);  color: var(--shaberi); }
+.sc-type-badge.accent  { background: rgba(79,156,249,.15);   color: var(--accent); }
 .sc-fasiri { font-size: 11px; color: var(--muted); }
 .sc-hint { font-size: 11px; color: var(--muted); margin-top: 4px; }
 .weekday-badge { display: inline-block; background: var(--surface2); border-radius: 4px; padding: 1px 6px; font-size: 10px; color: var(--muted); margin-left: 5px; }
@@ -464,13 +467,7 @@ select option { background: #1a1f35; }
   <div style="display:flex;gap:8px;align-items:flex-start;margin-bottom:12px;">
     <div style="flex:1;min-width:0;">
       <label class="form-label">種類</label>
-      <select id="sessionTypeSelect" onchange="selectType(this.value)" style="font-size:13px;">
-        <option value="">-- 選択 --</option>
-        <option value="悟り">🌸 悟り</option>
-        <option value="マスター">⭐ マスター</option>
-        <option value="ゆうand笑夢">💜 ゆうand笑夢</option>
-        <option value="しゃべり場">🎙️ しゃべり場</option>
-      </select>
+      <select id="sessionTypeSelect" onchange="selectType(this.value)" style="font-size:13px;"><option value="">-- 選択 --</option></select>
     </div>
     <div style="flex-shrink:0;">
       <label class="form-label">日付</label>
@@ -502,12 +499,8 @@ select option { background: #1a1f35; }
     <input type="text" id="searchInput" placeholder="🔍 検索…" oninput="renderLog()" />
     <button class="reload-btn" onclick="loadLog()">↺</button>
   </div>
-  <div class="filter-row" style="flex-wrap:wrap">
-    <button class="filter-chip active" id="chip-all"     onclick="setFilter('all')">すべて</button>
-    <button class="filter-chip satori" id="chip-satori"  onclick="setFilter('悟り')">🌸 悟り</button>
-    <button class="filter-chip master" id="chip-master"  onclick="setFilter('マスター')">⭐ マスター</button>
-    <button class="filter-chip yuu"    id="chip-yuu"     onclick="setFilter('ゆうand笑夢')">💜 ゆうand笑夢</button>
-    <button class="filter-chip shaberi" id="chip-shaberi" onclick="setFilter('しゃべり場')">🎙️ しゃべり場</button>
+  <div class="filter-row" id="filterRow" style="flex-wrap:wrap">
+    <button class="filter-chip active" id="chip-all" onclick="setFilter('all')">すべて</button>
   </div>
   <div id="logContainer"><div class="empty-state">ログを読み込み中…</div></div>
 </div>
@@ -540,6 +533,7 @@ select option { background: #1a1f35; }
 // ══════════════════════════════════════════
 const GAS_CODE = `const SESSIONS_SHEET = 'sessions';
 const MEMBERS_SHEET  = 'members';
+const TYPES_SHEET    = 'session_types';
 
 function doPost(e) {
   const data = JSON.parse(e.postData.contents);
@@ -600,6 +594,13 @@ function doGet(e) {
     return json({members: rows.map(r => ({name:r[0], role:r[1]}))});
   }
 
+  if (type === 'session_types') {
+    const sh = ss.getSheetByName(TYPES_SHEET);
+    if (!sh || sh.getLastRow() <= 1) return json({types:[]});
+    const [, ...rows] = sh.getDataRange().getValues();
+    return json({types: rows.map(r => ({name:String(r[0]).trim(), speakerRule:String(r[1]).trim()}))});
+  }
+
   const sh = ss.getSheetByName(SESSIONS_SHEET);
   if (!sh || sh.getLastRow() <= 1) return json({rows:[]});
   const [header, ...data] = sh.getDataRange().getValues();
@@ -617,12 +618,62 @@ document.getElementById('gasCodeDisplay').textContent = GAS_CODE;
 // ══════════════════════════════════════════
 // State
 // ══════════════════════════════════════════
-let members = [];   // {name, role}
+let members = [];      // {name, role}
+let sessionTypes = []; // {name, speakerRule}
 let allRows = [];
 let logFilter = 'all';
 let selectedType = '';
 let uttCount = 0;
 let fasiriCount = 0;
+
+// ══════════════════════════════════════════
+// Session type definitions
+// ══════════════════════════════════════════
+const DEFAULT_SESSION_TYPES = [
+  {name:'悟り',       speakerRule:'all'},
+  {name:'マスター',   speakerRule:'master'},
+  {name:'ゆうand笑夢',speakerRule:'all'},
+  {name:'しゃべり場', speakerRule:'all'},
+];
+
+// 種類名 → スタイルキー（色・絵文字用）
+function getTypeStyle(name) {
+  if (name.includes('悟り'))    return {key:'satori',  emoji:'🌸'};
+  if (name.includes('マスター')) return {key:'master',  emoji:'⭐'};
+  if (name.includes('ゆう') || name.includes('笑夢')) return {key:'yuu', emoji:'💜'};
+  if (name.includes('しゃべり')) return {key:'shaberi', emoji:'🎙️'};
+  // 未知の種類はアクセントカラー
+  return {key:'accent', emoji:'📌'};
+}
+
+function renderSessionTypeSelect() {
+  const sel = document.getElementById('sessionTypeSelect');
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">-- 選択 --</option>' +
+    sessionTypes.map(t => {
+      const {emoji} = getTypeStyle(t.name);
+      return `<option value="${escHtml(t.name)}" ${t.name===cur?'selected':''}>${emoji} ${escHtml(t.name)}</option>`;
+    }).join('');
+}
+
+function renderLogFilterChips() {
+  const row = document.getElementById('filterRow');
+  // 「すべて」チップは残し、以降を動的に再生成
+  const allChip = document.getElementById('chip-all');
+  row.innerHTML = '';
+  row.appendChild(allChip);
+  sessionTypes.forEach(t => {
+    const {key, emoji} = getTypeStyle(t.name);
+    const id = `chip-type-${escHtml(t.name)}`;
+    const btn = document.createElement('button');
+    btn.className = `filter-chip ${key}`;
+    btn.id = id;
+    btn.textContent = `${emoji} ${t.name}`;
+    btn.onclick = () => setFilter(t.name);
+    if (logFilter === t.name) btn.classList.add('active');
+    row.appendChild(btn);
+  });
+}
 
 // ══════════════════════════════════════════
 // GAS URL
@@ -635,6 +686,7 @@ function saveGasUrl() {
   updateStatus();
   toast('URL を保存しました ✓','success');
   loadMembers();
+  loadSessionTypes();
 }
 function updateStatus() {
   const ok = !!getUrl();
@@ -671,6 +723,25 @@ async function loadMembers() {
     renderMemberList();
     refreshSelects();
   } catch(e) { console.warn('members load failed', e); }
+}
+
+async function loadSessionTypes() {
+  const url = getUrl();
+  if (!url) return;
+  try {
+    const res = await fetch(`${url}?type=session_types&t=${Date.now()}`);
+    const data = await res.json();
+    if (data.types && data.types.length > 0) {
+      sessionTypes = data.types;
+    } else {
+      sessionTypes = DEFAULT_SESSION_TYPES;
+    }
+  } catch(e) {
+    sessionTypes = DEFAULT_SESSION_TYPES;
+    console.warn('session_types load failed', e);
+  }
+  renderSessionTypeSelect();
+  renderLogFilterChips();
 }
 
 function renderMemberList() {
@@ -738,6 +809,9 @@ function buildOptions(filterRole, selectedVal='') {
   } else if (filterRole === 'speaker-master') {
     // マスターセッション：マスター＋ファシリ（悟りは除外）
     list = members.filter(m => m.role === 'master' || m.role === 'fasiri');
+  } else if (filterRole === 'fasiri-only') {
+    // ファシリのみ
+    list = members.filter(m => m.role === 'fasiri');
   } else {
     list = members;
   }
@@ -748,9 +822,11 @@ function buildOptions(filterRole, selectedVal='') {
 }
 
 function getSpeakerFilter() {
-  if (selectedType === '悟り')   return 'speaker-satori';
-  if (selectedType === 'マスター') return 'speaker-master';
-  return 'all';
+  const t = sessionTypes.find(t => t.name === selectedType);
+  if (!t) return 'all';
+  if (t.speakerRule === 'master')  return 'speaker-master';
+  if (t.speakerRule === 'fasiri')  return 'fasiri-only';
+  return 'speaker-satori';
 }
 
 function refreshSelects() {
@@ -906,8 +982,9 @@ async function submitRecord() {
 // ══════════════════════════════════════════
 function setFilter(f) {
   logFilter = f;
-  ['all','satori','master','yuu','shaberi'].forEach(k => {
-    document.getElementById(`chip-${k}`).classList.toggle('active', k === f);
+  document.getElementById('chip-all').classList.toggle('active', f === 'all');
+  document.querySelectorAll('#filterRow .filter-chip:not(#chip-all)').forEach(btn => {
+    btn.classList.toggle('active', btn.textContent.trim().includes(f) || btn.id === `chip-type-${f}`);
   });
   renderLog();
 }
@@ -955,8 +1032,7 @@ function renderLog() {
 
   container.innerHTML = keys.map(key => {
     const g = groups[key];
-    const typeClass = g.type === '悟り' ? 'satori' : g.type === 'マスター' ? 'master' : g.type === 'ゆうand笑夢' ? 'yuu' : g.type === 'しゃべり場' ? 'shaberi' : '';
-    const typeEmoji = g.type === '悟り' ? '🌸' : g.type === 'マスター' ? '⭐' : g.type === 'ゆうand笑夢' ? '💜' : g.type === 'しゃべり場' ? '🎙️' : '';
+    const {key: typeClass, emoji: typeEmoji} = getTypeStyle(g.type || '');
     const uttHtml = g.utterances.map(u => `
       <div class="utterance-item">
         <div class="ui-speaker">${escHtml(u.speaker)||'（名前なし）'}</div>
@@ -1265,7 +1341,10 @@ window.addEventListener('beforeunload', e => {
 // ══════════════════════════════════════════
 updateStatus();
 const saved = getUrl();
-if (saved) { document.getElementById('gasUrl').value = saved; loadMembers(); }
+sessionTypes = DEFAULT_SESSION_TYPES;
+renderSessionTypeSelect();
+renderLogFilterChips();
+if (saved) { document.getElementById('gasUrl').value = saved; loadMembers(); loadSessionTypes(); }
 document.getElementById('audioPlayer').classList.add('no-audio');
 addFasiriRow(true);
 addUtterance();
