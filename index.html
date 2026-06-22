@@ -1074,7 +1074,6 @@ function loadAudio(input, restorePosition = 0) {
   // 既存のsrcを解放してから新しいファイルをセット
   if (audio.src) { URL.revokeObjectURL(audio.src); }
   audio.src = URL.createObjectURL(file);
-  audio.load();
 
   document.getElementById('audioLabel').textContent = file.name;
   document.getElementById('audioPlayer').classList.remove('no-audio');
@@ -1105,7 +1104,7 @@ function loadAudio(input, restorePosition = 0) {
 }
 function togglePlay() {
   const audio = document.getElementById('audioEl');
-  if (!audio.src) return;
+  if (!audio.src || audio.readyState === 0) return;
   if (audio.paused) {
     audio.play();
     document.getElementById('playBtn').textContent = '⏸';
@@ -1119,7 +1118,9 @@ function seekAudio(sec) {
   audio.currentTime = Math.max(0, Math.min(audio.duration || 0, audio.currentTime + sec));
 }
 function seekTo(val) {
-  document.getElementById('audioEl').currentTime = val;
+  const audio = document.getElementById('audioEl');
+  audio.currentTime = parseFloat(val);
+  document.getElementById('curTime').textContent = fmtTime(audio.currentTime);
 }
 function setSpeed(rate, btn) {
   document.getElementById('audioEl').playbackRate = rate;
