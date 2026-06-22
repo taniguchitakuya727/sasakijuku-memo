@@ -167,12 +167,12 @@ select option { background: #1a1f35; }
 
 /* ── Audio Player（固定） ── */
 .audio-player {
-  background: #13172280; backdrop-filter: blur(10px);
-  border-bottom: 1px solid var(--border);
-  padding: 8px 14px;
-  position: fixed; top: calc(55px + 40px); left: 0; right: 0; z-index: 90;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  margin-bottom: 14px;
 }
-#panel-record.audio-visible { padding-top: 110px; }
 .audio-top {
   display: flex; justify-content: space-between; align-items: center; margin-bottom: 7px;
 }
@@ -217,6 +217,7 @@ select option { background: #1a1f35; }
 /* 音声なし時は折りたたみ */
 .audio-player.no-audio .audio-main-row,
 .audio-player.no-audio .audio-seek-row { display: none; }
+.audio-player.no-audio .audio-label { display: none; }
 
 /* ── 発言者ワンタップボタン ── */
 .speaker-btns { display: flex; flex-wrap: wrap; gap: 7px; }
@@ -387,32 +388,6 @@ select option { background: #1a1f35; }
   <button class="tab-btn"         onclick="switchTab('members')">👥 メンバー</button>
 </div>
 
-<!-- ════════ 固定音声プレイヤー ════════ -->
-<div class="audio-player" id="audioPlayer" style="display:none">
-  <div class="audio-top">
-    <span class="audio-label" id="audioLabel">未選択</span>
-    <label class="audio-open-btn">音声を開く<input type="file" id="audioFile" style="display:none" onchange="loadAudio(this,0)"></label>
-  </div>
-  <div class="audio-main-row">
-    <button class="audio-btn" onclick="seekAudio(-10)">⏪ 10</button>
-    <button class="audio-btn play-btn" id="playBtn" onclick="togglePlay()">▶</button>
-    <button class="audio-btn" onclick="seekAudio(10)">10 ⏩</button>
-    <div class="speed-btns">
-      <button class="speed-btn active" onclick="setSpeed(1,this)">1×</button>
-      <button class="speed-btn" onclick="setSpeed(1.25,this)">1.25×</button>
-      <button class="speed-btn" onclick="setSpeed(1.5,this)">1.5×</button>
-      <button class="speed-btn" onclick="setSpeed(2,this)">2×</button>
-    </div>
-  </div>
-  <div class="audio-seek-row">
-    <input type="range" id="seekBar" value="0" min="0" step="0.1" oninput="seekTo(this.value)">
-    <span id="curTime">00:00</span>
-    <span style="color:var(--border)">／</span>
-    <span id="durTime">00:00</span>
-  </div>
-  <audio id="audioEl"></audio>
-</div>
-
 <!-- ════════ SETUP ════════ -->
 <div id="panel-setup" class="panel active">
   <div class="card">
@@ -483,6 +458,32 @@ select option { background: #1a1f35; }
     <label class="form-label">ファシリテーター</label>
     <div id="fasiriList"></div>
     <button class="add-row-btn" id="addFasiriBtn" onclick="addFasiriRow()" style="padding:7px;font-size:12px;">＋ 2人目を追加</button>
+  </div>
+
+  <!-- 音声プレイヤー -->
+  <div class="audio-player" id="audioPlayer">
+    <div class="audio-top">
+      <span class="audio-label" id="audioLabel">未選択</span>
+      <label class="audio-open-btn">音声を開く<input type="file" id="audioFile" style="display:none" onchange="loadAudio(this,0)"></label>
+    </div>
+    <div class="audio-main-row">
+      <button class="audio-btn" onclick="seekAudio(-10)">⏪ 10</button>
+      <button class="audio-btn play-btn" id="playBtn" onclick="togglePlay()">▶</button>
+      <button class="audio-btn" onclick="seekAudio(10)">10 ⏩</button>
+      <div class="speed-btns">
+        <button class="speed-btn active" onclick="setSpeed(1,this)">1×</button>
+        <button class="speed-btn" onclick="setSpeed(1.25,this)">1.25×</button>
+        <button class="speed-btn" onclick="setSpeed(1.5,this)">1.5×</button>
+        <button class="speed-btn" onclick="setSpeed(2,this)">2×</button>
+      </div>
+    </div>
+    <div class="audio-seek-row">
+      <input type="range" id="seekBar" value="0" min="0" step="0.1" oninput="seekTo(this.value)">
+      <span id="curTime">00:00</span>
+      <span style="color:var(--border)">／</span>
+      <span id="durTime">00:00</span>
+    </div>
+    <audio id="audioEl"></audio>
   </div>
 
   <!-- 発言 / メモ -->
@@ -657,7 +658,6 @@ const TAB_NAMES = ['setup','record','log','members'];
 function switchTab(name) {
   document.querySelectorAll('.tab-btn').forEach((b,i) => b.classList.toggle('active', TAB_NAMES[i] === name));
   document.querySelectorAll('.panel').forEach(p => p.classList.toggle('active', p.id === `panel-${name}`));
-  document.getElementById('audioPlayer').style.display = name === 'record' ? '' : 'none';
   if (name === 'log')     loadLog();
   if (name === 'members') renderMemberList();
   if (name === 'record')  refreshSelects();
@@ -1073,9 +1073,6 @@ function loadAudio(input, restorePosition = 0) {
   document.getElementById('audioLabel').textContent = file.name;
   document.getElementById('audioPlayer').classList.remove('no-audio');
   _currentAudioFileName = file.name;
-
-  // fixed表示用クラスを付与してパディング確保
-  document.getElementById('panel-record').classList.add('audio-visible');
 
   audio.addEventListener('loadedmetadata', () => {
     document.getElementById('seekBar').max = audio.duration;
