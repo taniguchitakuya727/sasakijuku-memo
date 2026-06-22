@@ -460,6 +460,14 @@ select option { background: #1a1f35; }
     <button class="add-row-btn" id="addFasiriBtn" onclick="addFasiriRow()" style="padding:7px;font-size:12px;">＋ 2人目を追加</button>
   </div>
 
+  <!-- 発言 / メモ -->
+  <div class="form-section">
+    <label class="form-label">発言 / メモ <span style="color:var(--muted);font-size:10px;font-weight:400;text-transform:none;">Space=再生停止　←→=10秒</span></label>
+    <div id="utteranceList"></div>
+    <button class="next-utt-btn" onclick="addUtterance(true)">＋ 次の発言者</button>
+  </div>
+
+
   <!-- 音声プレイヤー -->
   <div class="audio-player" id="audioPlayer">
     <div class="audio-top">
@@ -484,13 +492,6 @@ select option { background: #1a1f35; }
       <span id="durTime">00:00</span>
     </div>
     <audio id="audioEl"></audio>
-  </div>
-
-  <!-- 発言 / メモ -->
-  <div class="form-section">
-    <label class="form-label">発言 / メモ <span style="color:var(--muted);font-size:10px;font-weight:400;text-transform:none;">Space=再生停止　←→=10秒</span></label>
-    <div id="utteranceList"></div>
-    <button class="next-utt-btn" onclick="addUtterance(true)">＋ 次の発言者</button>
   </div>
 
   <button class="submit-btn" id="submitBtn" onclick="submitRecord()">💾 スプレッドシートに保存</button>
