@@ -1070,29 +1070,35 @@ function loadAudio(input, restorePosition = 0) {
   const file = input.files[0];
   if (!file) return;
   const audio = document.getElementById('audioEl');
+
+  // 既存のsrcを解放してから新しいファイルをセット
+  if (audio.src) { URL.revokeObjectURL(audio.src); }
   audio.src = URL.createObjectURL(file);
+  audio.load();
+
   document.getElementById('audioLabel').textContent = file.name;
   document.getElementById('audioPlayer').classList.remove('no-audio');
   _currentAudioFileName = file.name;
 
-  audio.addEventListener('loadedmetadata', () => {
+  // on* 形式で上書きして重複登録を防ぐ
+  audio.onloadedmetadata = () => {
     document.getElementById('seekBar').max = audio.duration;
     document.getElementById('durTime').textContent = fmtTime(audio.duration);
     if (restorePosition > 0) {
       audio.currentTime = Math.min(restorePosition, audio.duration);
     }
-  });
-  audio.addEventListener('timeupdate', () => {
+  };
+  audio.ontimeupdate = () => {
     document.getElementById('seekBar').value = audio.currentTime;
     document.getElementById('curTime').textContent = fmtTime(audio.currentTime);
     if (Math.floor(audio.currentTime) !== _lastSavedAudioSec) {
       _lastSavedAudioSec = Math.floor(audio.currentTime);
       scheduleDraft();
     }
-  });
-  audio.addEventListener('ended', () => {
+  };
+  audio.onended = () => {
     document.getElementById('playBtn').textContent = '▶';
-  });
+  };
 
   const audioBanner = document.getElementById('audioDraftBanner');
   if (audioBanner) audioBanner.remove();
