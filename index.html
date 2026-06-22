@@ -167,9 +167,11 @@ select option { background: #1a1f35; }
 
 /* ── Audio Player（固定） ── */
 .audio-player {
-  background: #13172280; backdrop-filter: blur(10px);
-  border-bottom: 1px solid var(--border);
-  padding: 8px 14px; position: sticky; top: 0; z-index: 90;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  margin-bottom: 14px;
 }
 .audio-top {
   display: flex; justify-content: space-between; align-items: center; margin-bottom: 7px;
@@ -215,6 +217,7 @@ select option { background: #1a1f35; }
 /* 音声なし時は折りたたみ */
 .audio-player.no-audio .audio-main-row,
 .audio-player.no-audio .audio-seek-row { display: none; }
+.audio-player.no-audio .audio-label { display: none; }
 
 /* ── 発言者ワンタップボタン ── */
 .speaker-btns { display: flex; flex-wrap: wrap; gap: 7px; }
@@ -385,32 +388,6 @@ select option { background: #1a1f35; }
   <button class="tab-btn"         onclick="switchTab('members')">👥 メンバー</button>
 </div>
 
-<!-- ════════ 固定音声プレイヤー ════════ -->
-<div class="audio-player" id="audioPlayer" style="display:none">
-  <div class="audio-top">
-    <span class="audio-label" id="audioLabel">未選択</span>
-    <label class="audio-open-btn">音声を開く<input type="file" id="audioFile" style="display:none" onchange="loadAudio(this,0)"></label>
-  </div>
-  <div class="audio-main-row">
-    <button class="audio-btn" onclick="seekAudio(-10)">⏪ 10</button>
-    <button class="audio-btn play-btn" id="playBtn" onclick="togglePlay()">▶</button>
-    <button class="audio-btn" onclick="seekAudio(10)">10 ⏩</button>
-    <div class="speed-btns">
-      <button class="speed-btn active" onclick="setSpeed(1,this)">1×</button>
-      <button class="speed-btn" onclick="setSpeed(1.25,this)">1.25×</button>
-      <button class="speed-btn" onclick="setSpeed(1.5,this)">1.5×</button>
-      <button class="speed-btn" onclick="setSpeed(2,this)">2×</button>
-    </div>
-  </div>
-  <div class="audio-seek-row">
-    <input type="range" id="seekBar" value="0" min="0" step="0.1" oninput="seekTo(this.value)">
-    <span id="curTime">00:00</span>
-    <span style="color:var(--border)">／</span>
-    <span id="durTime">00:00</span>
-  </div>
-  <audio id="audioEl"></audio>
-</div>
-
 <!-- ════════ SETUP ════════ -->
 <div id="panel-setup" class="panel active">
   <div class="card">
@@ -481,6 +458,32 @@ select option { background: #1a1f35; }
     <label class="form-label">ファシリテーター</label>
     <div id="fasiriList"></div>
     <button class="add-row-btn" id="addFasiriBtn" onclick="addFasiriRow()" style="padding:7px;font-size:12px;">＋ 2人目を追加</button>
+  </div>
+
+  <!-- 音声プレイヤー -->
+  <div class="audio-player" id="audioPlayer">
+    <div class="audio-top">
+      <span class="audio-label" id="audioLabel">未選択</span>
+      <label class="audio-open-btn">音声を開く<input type="file" id="audioFile" style="display:none" onchange="loadAudio(this,0)"></label>
+    </div>
+    <div class="audio-main-row">
+      <button class="audio-btn" onclick="seekAudio(-10)">⏪ 10</button>
+      <button class="audio-btn play-btn" id="playBtn" onclick="togglePlay()">▶</button>
+      <button class="audio-btn" onclick="seekAudio(10)">10 ⏩</button>
+      <div class="speed-btns">
+        <button class="speed-btn active" onclick="setSpeed(1,this)">1×</button>
+        <button class="speed-btn" onclick="setSpeed(1.25,this)">1.25×</button>
+        <button class="speed-btn" onclick="setSpeed(1.5,this)">1.5×</button>
+        <button class="speed-btn" onclick="setSpeed(2,this)">2×</button>
+      </div>
+    </div>
+    <div class="audio-seek-row">
+      <input type="range" id="seekBar" value="0" min="0" step="0.1" oninput="seekTo(this.value)">
+      <span id="curTime">00:00</span>
+      <span style="color:var(--border)">／</span>
+      <span id="durTime">00:00</span>
+    </div>
+    <audio id="audioEl"></audio>
   </div>
 
   <!-- 発言 / メモ -->
@@ -627,55 +630,6 @@ let uttCount = 0;
 let fasiriCount = 0;
 
 // ══════════════════════════════════════════
-// Session type definitions
-// ══════════════════════════════════════════
-const DEFAULT_SESSION_TYPES = [
-  {name:'悟り',       speakerRule:'all'},
-  {name:'マスター',   speakerRule:'master'},
-  {name:'ゆうand笑夢',speakerRule:'all'},
-  {name:'しゃべり場', speakerRule:'all'},
-];
-
-// 種類名 → スタイルキー（色・絵文字用）
-function getTypeStyle(name) {
-  if (name.includes('悟り'))    return {key:'satori',  emoji:'🌸'};
-  if (name.includes('マスター')) return {key:'master',  emoji:'⭐'};
-  if (name.includes('ゆう') || name.includes('笑夢')) return {key:'yuu', emoji:'💜'};
-  if (name.includes('しゃべり')) return {key:'shaberi', emoji:'🎙️'};
-  // 未知の種類はアクセントカラー
-  return {key:'accent', emoji:'📌'};
-}
-
-function renderSessionTypeSelect() {
-  const sel = document.getElementById('sessionTypeSelect');
-  const cur = sel.value;
-  sel.innerHTML = '<option value="">-- 選択 --</option>' +
-    sessionTypes.map(t => {
-      const {emoji} = getTypeStyle(t.name);
-      return `<option value="${escHtml(t.name)}" ${t.name===cur?'selected':''}>${emoji} ${escHtml(t.name)}</option>`;
-    }).join('');
-}
-
-function renderLogFilterChips() {
-  const row = document.getElementById('filterRow');
-  // 「すべて」チップは残し、以降を動的に再生成
-  const allChip = document.getElementById('chip-all');
-  row.innerHTML = '';
-  row.appendChild(allChip);
-  sessionTypes.forEach(t => {
-    const {key, emoji} = getTypeStyle(t.name);
-    const id = `chip-type-${escHtml(t.name)}`;
-    const btn = document.createElement('button');
-    btn.className = `filter-chip ${key}`;
-    btn.id = id;
-    btn.textContent = `${emoji} ${t.name}`;
-    btn.onclick = () => setFilter(t.name);
-    if (logFilter === t.name) btn.classList.add('active');
-    row.appendChild(btn);
-  });
-}
-
-// ══════════════════════════════════════════
 // GAS URL
 // ══════════════════════════════════════════
 function getUrl() { return localStorage.getItem('sasakijuku_gas_url') || ''; }
@@ -704,7 +658,6 @@ const TAB_NAMES = ['setup','record','log','members'];
 function switchTab(name) {
   document.querySelectorAll('.tab-btn').forEach((b,i) => b.classList.toggle('active', TAB_NAMES[i] === name));
   document.querySelectorAll('.panel').forEach(p => p.classList.toggle('active', p.id === `panel-${name}`));
-  document.getElementById('audioPlayer').style.display = name === 'record' ? '' : 'none';
   if (name === 'log')     loadLog();
   if (name === 'members') renderMemberList();
   if (name === 'record')  refreshSelects();
@@ -713,16 +666,49 @@ function switchTab(name) {
 // ══════════════════════════════════════════
 // Members
 // ══════════════════════════════════════════
-async function loadMembers() {
-  const url = getUrl();
-  if (!url) return;
-  try {
-    const res = await fetch(`${url}?type=members&t=${Date.now()}`);
-    const data = await res.json();
-    members = data.members || [];
-    renderMemberList();
-    refreshSelects();
-  } catch(e) { console.warn('members load failed', e); }
+// ══════════════════════════════════════════
+// Session type definitions
+// ══════════════════════════════════════════
+const DEFAULT_SESSION_TYPES = [
+  {name:'悟り',       speakerRule:'all'},
+  {name:'マスター',   speakerRule:'master'},
+  {name:'ゆうand笑夢',speakerRule:'all'},
+  {name:'しゃべり場', speakerRule:'all'},
+];
+
+function getTypeStyle(name) {
+  if (name.includes('悟り'))    return {key:'satori',  emoji:'🌸'};
+  if (name.includes('マスター')) return {key:'master',  emoji:'⭐'};
+  if (name.includes('ゆう') || name.includes('笑夢')) return {key:'yuu', emoji:'💜'};
+  if (name.includes('しゃべり')) return {key:'shaberi', emoji:'🎙️'};
+  return {key:'accent', emoji:'📌'};
+}
+
+function renderSessionTypeSelect() {
+  const sel = document.getElementById('sessionTypeSelect');
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">-- 選択 --</option>' +
+    sessionTypes.map(t => {
+      const {emoji} = getTypeStyle(t.name);
+      return `<option value="${escHtml(t.name)}" ${t.name===cur?'selected':''}>${emoji} ${escHtml(t.name)}</option>`;
+    }).join('');
+}
+
+function renderLogFilterChips() {
+  const row = document.getElementById('filterRow');
+  const allChip = document.getElementById('chip-all');
+  row.innerHTML = '';
+  row.appendChild(allChip);
+  sessionTypes.forEach(t => {
+    const {key, emoji} = getTypeStyle(t.name);
+    const btn = document.createElement('button');
+    btn.className = `filter-chip ${key}`;
+    btn.id = `chip-type-${t.name}`;
+    btn.textContent = `${emoji} ${t.name}`;
+    btn.onclick = () => setFilter(t.name);
+    if (logFilter === t.name) btn.classList.add('active');
+    row.appendChild(btn);
+  });
 }
 
 async function loadSessionTypes() {
@@ -738,10 +724,21 @@ async function loadSessionTypes() {
     }
   } catch(e) {
     sessionTypes = DEFAULT_SESSION_TYPES;
-    console.warn('session_types load failed', e);
   }
   renderSessionTypeSelect();
   renderLogFilterChips();
+}
+
+async function loadMembers() {
+  const url = getUrl();
+  if (!url) return;
+  try {
+    const res = await fetch(`${url}?type=members&t=${Date.now()}`);
+    const data = await res.json();
+    members = data.members || [];
+    renderMemberList();
+    refreshSelects();
+  } catch(e) { console.warn('members load failed', e); }
 }
 
 function renderMemberList() {
@@ -810,7 +807,6 @@ function buildOptions(filterRole, selectedVal='') {
     // マスターセッション：マスター＋ファシリ（悟りは除外）
     list = members.filter(m => m.role === 'master' || m.role === 'fasiri');
   } else if (filterRole === 'fasiri-only') {
-    // ファシリのみ
     list = members.filter(m => m.role === 'fasiri');
   } else {
     list = members;
@@ -830,19 +826,15 @@ function getSpeakerFilter() {
 }
 
 function refreshSelects() {
-  // ファシリ：現在値を保持して再構築
   document.querySelectorAll('.fasiri-select').forEach(sel => {
     const cur = sel.value;
     sel.innerHTML = buildOptions('fasiri', cur);
-    // membersにない値（ロード前の一時値）も失わないよう保持
     if (cur && sel.value !== cur) {
       const opt = document.createElement('option');
       opt.value = cur; opt.textContent = cur;
-      sel.appendChild(opt);
-      sel.value = cur;
+      sel.appendChild(opt); sel.value = cur;
     }
   });
-  // 発言者（セッション種類に応じて絞り込む）
   const spFilter = getSpeakerFilter();
   document.querySelectorAll('.utt-speaker-select').forEach(sel => {
     const cur = sel.value;
@@ -850,8 +842,7 @@ function refreshSelects() {
     if (cur && sel.value !== cur) {
       const opt = document.createElement('option');
       opt.value = cur; opt.textContent = cur;
-      sel.appendChild(opt);
-      sel.value = cur;
+      sel.appendChild(opt); sel.value = cur;
     }
   });
 }
@@ -984,7 +975,7 @@ function setFilter(f) {
   logFilter = f;
   document.getElementById('chip-all').classList.toggle('active', f === 'all');
   document.querySelectorAll('#filterRow .filter-chip:not(#chip-all)').forEach(btn => {
-    btn.classList.toggle('active', btn.textContent.trim().includes(f) || btn.id === `chip-type-${f}`);
+    btn.classList.toggle('active', btn.id === `chip-type-${f}`);
   });
   renderLog();
 }
@@ -1071,7 +1062,8 @@ function toast(msg, type='') {
 // ══════════════════════════════════════════
 // Audio Player
 // ══════════════════════════════════════════
-let _audioRestorePosition = 0; // 復元すべき再生位置（秒）
+let _currentAudioFileName = null;
+let _lastSavedAudioSec = -1;
 
 function loadAudio(input, restorePosition = 0) {
   const file = input.files[0];
@@ -1080,14 +1072,11 @@ function loadAudio(input, restorePosition = 0) {
   audio.src = URL.createObjectURL(file);
   document.getElementById('audioLabel').textContent = file.name;
   document.getElementById('audioPlayer').classList.remove('no-audio');
-
-  // 音声ファイル名・再生位置を下書きに保存するため通知
   _currentAudioFileName = file.name;
 
   audio.addEventListener('loadedmetadata', () => {
     document.getElementById('seekBar').max = audio.duration;
     document.getElementById('durTime').textContent = fmtTime(audio.duration);
-    // 復元位置にシーク
     if (restorePosition > 0) {
       audio.currentTime = Math.min(restorePosition, audio.duration);
     }
@@ -1095,7 +1084,6 @@ function loadAudio(input, restorePosition = 0) {
   audio.addEventListener('timeupdate', () => {
     document.getElementById('seekBar').value = audio.currentTime;
     document.getElementById('curTime').textContent = fmtTime(audio.currentTime);
-    // 再生位置を下書きに定期保存（1秒ごと）
     if (Math.floor(audio.currentTime) !== _lastSavedAudioSec) {
       _lastSavedAudioSec = Math.floor(audio.currentTime);
       scheduleDraft();
@@ -1105,13 +1093,9 @@ function loadAudio(input, restorePosition = 0) {
     document.getElementById('playBtn').textContent = '▶';
   });
 
-  // 音声バナーがあれば消す
   const audioBanner = document.getElementById('audioDraftBanner');
   if (audioBanner) audioBanner.remove();
 }
-
-let _currentAudioFileName = null;
-let _lastSavedAudioSec = -1;
 function togglePlay() {
   const audio = document.getElementById('audioEl');
   if (!audio.src) return;
@@ -1183,8 +1167,7 @@ function saveDraft() {
     memo: b.querySelector('.utt-memo').value
   }));
   const audio = document.getElementById('audioEl');
-  const audioPosition = (audio.src && !audio.paused) || audio.currentTime > 0
-    ? Math.floor(audio.currentTime) : 0;
+  const audioPosition = audio.currentTime > 0 ? Math.floor(audio.currentTime) : 0;
   const draft = {
     date, sessionType: selectedType, fasiri: fasiriVals, utterances,
     audioFileName: _currentAudioFileName || null,
@@ -1204,15 +1187,13 @@ function restoreDraft() {
     const draft = JSON.parse(raw);
     if (!draft.utterances || draft.utterances.length === 0) return;
 
-    // 日付
     if (draft.date) {
       document.getElementById('recDate').value = draft.date;
       document.getElementById('weekdayDisplay').textContent = `（${getWeekday(draft.date)}曜日）`;
     }
-    // セッション種類
     if (draft.sessionType) selectType(draft.sessionType);
 
-    // ファシリ復元（membersがまだロードされていない場合も一時オプションで対応）
+    // ファシリ復元
     if (draft.fasiri && draft.fasiri.length > 0) {
       const fasiriList = document.getElementById('fasiriList');
       draft.fasiri.forEach((name, i) => {
@@ -1252,7 +1233,7 @@ function restoreDraft() {
     banner.innerHTML = `📝 前回の入力途中のデータを復元しました <button onclick="clearDraft();this.parentElement.remove()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:12px;">クリア</button>`;
     document.getElementById('panel-record').insertBefore(banner, document.getElementById('panel-record').firstChild);
 
-    // 音声バナー（前回音声ファイルが開かれていた場合）
+    // 音声バナー
     if (draft.audioFileName) {
       const pos = draft.audioPosition || 0;
       const posLabel = pos > 0 ? `（${fmtTime(pos)} から再開）` : '';
@@ -1262,8 +1243,7 @@ function restoreDraft() {
       audioBanner.innerHTML =
         `🎵 前回「${escHtml(draft.audioFileName)}」を再生していました${escHtml(posLabel)}<br>` +
         `<label style="display:inline-block;margin-top:6px;cursor:pointer;background:var(--satori);color:#1a1400;font-weight:700;padding:4px 12px;border-radius:6px;font-size:11px;">` +
-        `同じファイルを選択して再開` +
-        `<input type="file" style="display:none" onchange="loadAudio(this,${pos})">` +
+        `同じファイルを選択して再開<input type="file" style="display:none" onchange="loadAudio(this,${pos})">` +
         `</label>` +
         `<button onclick="this.parentElement.remove()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:12px;float:right;">✕</button>`;
       document.getElementById('panel-record').insertBefore(audioBanner, document.getElementById('panel-record').firstChild);
