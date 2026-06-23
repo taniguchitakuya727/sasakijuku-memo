@@ -1155,8 +1155,17 @@ function fmtTime(sec) {
 }
 function fmtDate(val) {
   if (!val) return '';
-  // ISO形式（2026-06-18T...）や YYYY-MM-DD を YYYY/MM/DD に変換
   const s = String(val);
+  // ISO形式（Tを含む）はJST（UTC+9）に変換してから日付を取る
+  if (s.includes('T')) {
+    const d = new Date(s);
+    const jst = new Date(d.getTime() + 9 * 60 * 60 * 1000);
+    const y = jst.getUTCFullYear();
+    const mo = String(jst.getUTCMonth() + 1).padStart(2, '0');
+    const dy = String(jst.getUTCDate()).padStart(2, '0');
+    return `${y}/${mo}/${dy}`;
+  }
+  // YYYY-MM-DD 形式はそのまま変換
   const m = s.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})/);
   if (m) return `${m[1]}/${String(m[2]).padStart(2,'0')}/${String(m[3]).padStart(2,'0')}`;
   return s;
