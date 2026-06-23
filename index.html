@@ -1066,59 +1066,79 @@ function toast(msg, type='') {
 let _currentAudioFileName = null;
 let _lastSavedAudioSec = -1;
 
+// audio要素への参照を1か所で管理
+function getAudio() { return document.getElementById('audioEl'); }
+
 function loadAudio(input, restorePosition = 0) {
   const file = input.files[0];
   if (!file) return;
-  const audio = document.getElementById('audioEl');
 
-  // 既存のsrcを解放してから新しいファイルをセット
-  if (audio.src) { URL.revokeObjectURL(audio.src); }
-  audio.src = URL.createObjectURL(file);
+  // 古いオブジェクトURLを記憶して後で解放
+  const prevUrl = window._audioObjectUrl || null;
+
+  const url = URL.createObjectURL(file);
+  window._audioObjectUrl = url;
+
+  // audio要素を作り直して差し替え（イベント完全リセット）
+  const oldAudio = document.getElementById('audioEl');
+  const newAudio = document.createElement('audio');
+  newAudio.id = 'audioEl';
+  oldAudio.replaceWith(newAudio);
+
+  // イベント登録
+  newAudio.onloadedmetadata = () => {
+    document.getElementById('seekBar').max = newAudio.duration;
+    document.getElementById('durTime').textContent = fmtTime(newAudio.duration);
+    if (restorePosition > 0) {
+      newAudio.currentTime = Math.min(restorePosition, newAudio.duration);
+    }
+  };
+  newAudio.ontimeupdate = () => {
+    document.getElementById('seekBar').value = newAudio.currentTime;
+    document.getElementById('curTime').textContent = fmtTime(newAudio.currentTime);
+    if (Math.floor(newAudio.currentTime) !== _lastSavedAudioSec) {
+      _lastSavedAudioSec = Math.floor(newAudio.currentTime);
+      scheduleDraft();
+    }
+  };
+  newAudio.onended = () => {
+    document.getElementById('playBtn').textContent = '▶';
+  };
+  newAudio.oncanplay = () => {
+    // 前のURLを安全に解放
+    if (prevUrl) URL.revokeObjectURL(prevUrl);
+  };
+
+  // srcをセット（イベント登録後）
+  newAudio.src = url;
 
   document.getElementById('audioLabel').textContent = file.name;
   document.getElementById('audioPlayer').classList.remove('no-audio');
   _currentAudioFileName = file.name;
 
-  // on* 形式で上書きして重複登録を防ぐ
-  audio.onloadedmetadata = () => {
-    document.getElementById('seekBar').max = audio.duration;
-    document.getElementById('durTime').textContent = fmtTime(audio.duration);
-    if (restorePosition > 0) {
-      audio.currentTime = Math.min(restorePosition, audio.duration);
-    }
-  };
-  audio.ontimeupdate = () => {
-    document.getElementById('seekBar').value = audio.currentTime;
-    document.getElementById('curTime').textContent = fmtTime(audio.currentTime);
-    if (Math.floor(audio.currentTime) !== _lastSavedAudioSec) {
-      _lastSavedAudioSec = Math.floor(audio.currentTime);
-      scheduleDraft();
-    }
-  };
-  audio.onended = () => {
-    document.getElementById('playBtn').textContent = '▶';
-  };
-
   const audioBanner = document.getElementById('audioDraftBanner');
   if (audioBanner) audioBanner.remove();
 }
 function togglePlay() {
-  const audio = document.getElementById('audioEl');
-  if (!audio.src || audio.readyState === 0) return;
+  const audio = getAudio();
+  if (!audio || !audio.src) return;
   if (audio.paused) {
-    audio.play();
-    document.getElementById('playBtn').textContent = '⏸';
+    audio.play().then(() => {
+      document.getElementById('playBtn').textContent = '⏸';
+    }).catch(() => {});
   } else {
     audio.pause();
     document.getElementById('playBtn').textContent = '▶';
   }
 }
 function seekAudio(sec) {
-  const audio = document.getElementById('audioEl');
-  audio.currentTime = Math.max(0, Math.min(audio.duration || 0, audio.currentTime + sec));
+  const audio = getAudio();
+  if (!audio || !audio.duration) return;
+  audio.currentTime = Math.max(0, Math.min(audio.duration, audio.currentTime + sec));
 }
 function seekTo(val) {
-  const audio = document.getElementById('audioEl');
+  const audio = getAudio();
+  if (!audio) return;
   audio.currentTime = parseFloat(val);
   document.getElementById('curTime').textContent = fmtTime(audio.currentTime);
 }
