@@ -1034,7 +1034,7 @@ function renderLog() {
       <div class="session-card collapsed ${typeClass}-card" onclick="this.classList.toggle('collapsed')">
         <div class="sc-header">
           <div>
-            <span class="sc-date">${escHtml(String(g.date))}</span>
+            <span class="sc-date">${escHtml(fmtDate(g.date))}</span>
             <span class="weekday-badge">${escHtml(g.weekday||'')}曜</span>
           </div>
           <div class="sc-meta">
@@ -1152,6 +1152,14 @@ function fmtTime(sec) {
   const m = Math.floor(sec / 60);
   const s = Math.floor(sec % 60);
   return `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+}
+function fmtDate(val) {
+  if (!val) return '';
+  // ISO形式（2026-06-18T...）や YYYY-MM-DD を YYYY/MM/DD に変換
+  const s = String(val);
+  const m = s.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})/);
+  if (m) return `${m[1]}/${String(m[2]).padStart(2,'0')}/${String(m[3]).padStart(2,'0')}`;
+  return s;
 }
 
 // ── キーボードショートカット ──
