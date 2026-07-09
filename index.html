@@ -292,6 +292,67 @@ select option { background: #1a1f35; }
 .ui-memo { font-size: 13px; line-height: 1.6; }
 .session-card.collapsed .utterance-item { display: none; }
 
+/* ── Calendar ── */
+.calendar-toolbar {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 10px; margin-bottom: 12px;
+}
+.calendar-title { font-size: 16px; font-weight: 700; color: var(--text); }
+.calendar-nav {
+  width: 36px; height: 36px; border-radius: 8px;
+  background: var(--surface); border: 1px solid var(--border);
+  color: var(--text); cursor: pointer; font-size: 18px;
+}
+.calendar-nav:hover { border-color: var(--accent); color: var(--accent); }
+.calendar-legend {
+  display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px;
+  font-size: 11px; color: var(--muted);
+}
+.legend-item { display: flex; align-items: center; gap: 5px; }
+.legend-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+.legend-dot.memo { background: var(--accent); }
+.legend-dot.audio { background: var(--satori); }
+.calendar-grid {
+  display: grid; grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 4px;
+}
+.calendar-weekday {
+  text-align: center; color: var(--muted); font-size: 10px;
+  padding: 5px 0; font-weight: 700;
+}
+.calendar-day {
+  min-height: 62px; border-radius: 8px; border: 1px solid var(--border);
+  background: var(--surface); color: var(--text); padding: 7px 5px;
+  font-family: inherit; text-align: left; cursor: pointer;
+  display: flex; flex-direction: column; justify-content: space-between;
+}
+.calendar-day.blank { visibility: hidden; pointer-events: none; }
+.calendar-day.today { border-color: var(--accent); }
+.calendar-day.selected { background: rgba(79,156,249,.12); border-color: var(--accent); }
+.calendar-day:hover { border-color: var(--muted); }
+.calendar-day-num { font-size: 13px; font-family: 'DM Mono', monospace; }
+.calendar-marks { display: flex; gap: 3px; min-height: 8px; }
+.calendar-mark { width: 7px; height: 7px; border-radius: 50%; }
+.calendar-mark.memo { background: var(--accent); }
+.calendar-mark.audio { background: var(--satori); }
+.calendar-summary { margin-top: 14px; }
+.calendar-summary h3 { margin-bottom: 10px; }
+.calendar-summary-row {
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 8px; padding: 10px 12px; margin-bottom: 8px;
+}
+.calendar-summary-main {
+  display: flex; justify-content: space-between; align-items: center; gap: 8px;
+}
+.calendar-summary-date { color: var(--accent); font-weight: 700; font-family: 'DM Mono', monospace; }
+.calendar-summary-meta { font-size: 12px; color: var(--muted); margin-top: 4px; line-height: 1.5; }
+.calendar-action {
+  background: var(--surface); border: 1px solid var(--border);
+  color: var(--text); padding: 7px 10px; border-radius: 7px;
+  font-size: 12px; font-family: inherit; cursor: pointer; white-space: nowrap;
+}
+.calendar-action:hover { border-color: var(--accent); color: var(--accent); }
+
 /* ── Members ── */
 .member-form { display: flex; gap: 8px; margin-bottom: 16px; }
 .member-form input  { flex: 1; }
@@ -385,6 +446,7 @@ select option { background: #1a1f35; }
   <button class="tab-btn active"  onclick="switchTab('setup')">⚙️ 設定</button>
   <button class="tab-btn"         onclick="switchTab('record')">✏️ 記録</button>
   <button class="tab-btn"         onclick="switchTab('log')">📋 ログ</button>
+  <button class="tab-btn"         onclick="switchTab('calendar')">📅 カレンダー</button>
   <button class="tab-btn"         onclick="switchTab('members')">👥 メンバー</button>
 </div>
 
@@ -509,6 +571,21 @@ select option { background: #1a1f35; }
   <div id="logContainer"><div class="empty-state">ログを読み込み中…</div></div>
 </div>
 
+<!-- ════════ CALENDAR ════════ -->
+<div id="panel-calendar" class="panel">
+  <div class="calendar-toolbar">
+    <button class="calendar-nav" onclick="moveCalendarMonth(-1)">‹</button>
+    <div class="calendar-title" id="calendarTitle"></div>
+    <button class="calendar-nav" onclick="moveCalendarMonth(1)">›</button>
+  </div>
+  <div class="calendar-legend">
+    <span class="legend-item"><span class="legend-dot memo"></span>メモあり</span>
+    <span class="legend-item"><span class="legend-dot audio"></span>録音ファイル選択済み</span>
+  </div>
+  <div class="calendar-grid" id="calendarGrid"></div>
+  <div class="calendar-summary card" id="calendarSummary"></div>
+</div>
+
 <!-- ════════ MEMBERS ════════ -->
 <div id="panel-members" class="panel">
   <div class="card">
@@ -629,6 +706,8 @@ let logFilter = 'all';
 let selectedType = '';
 let uttCount = 0;
 let fasiriCount = 0;
+let calendarDate = new Date();
+let selectedCalendarDate = '';
 
 // ══════════════════════════════════════════
 // GAS URL
@@ -655,11 +734,12 @@ function copyGasCode() {
 // ══════════════════════════════════════════
 // Tabs
 // ══════════════════════════════════════════
-const TAB_NAMES = ['setup','record','log','members'];
+const TAB_NAMES = ['setup','record','log','calendar','members'];
 function switchTab(name) {
   document.querySelectorAll('.tab-btn').forEach((b,i) => b.classList.toggle('active', TAB_NAMES[i] === name));
   document.querySelectorAll('.panel').forEach(p => p.classList.toggle('active', p.id === `panel-${name}`));
   if (name === 'log')     loadLog();
+  if (name === 'calendar') loadCalendar();
   if (name === 'members') renderMemberList();
   if (name === 'record')  refreshSelects();
 }
@@ -986,13 +1066,20 @@ async function loadLog() {
   if (!url) { document.getElementById('logContainer').innerHTML = '<div class="empty-state">URLを設定してください</div>'; return; }
   document.getElementById('logContainer').innerHTML = '<div class="empty-state">読み込み中…</div>';
   try {
-    const res = await fetch(`${url}?type=sessions&t=${Date.now()}`);
-    const data = await res.json();
-    allRows = data.rows || [];
+    await fetchSessions();
     renderLog();
   } catch(e) {
     document.getElementById('logContainer').innerHTML = '<div class="empty-state">読み込みエラー</div>';
   }
+}
+
+async function fetchSessions() {
+  const url = getUrl();
+  if (!url) throw new Error('no_url');
+  const res = await fetch(`${url}?type=sessions&t=${Date.now()}`);
+  const data = await res.json();
+  allRows = data.rows || [];
+  return allRows;
 }
 
 function renderLog() {
@@ -1046,6 +1133,144 @@ function renderLog() {
         ${uttHtml}
       </div>`;
   }).join('');
+}
+
+// ══════════════════════════════════════════
+// Calendar
+// ══════════════════════════════════════════
+const AUDIO_DATES_KEY = 'sasakijuku_audio_dates';
+
+function normalizeDateKey(val) {
+  if (!val) return '';
+  const s = String(val);
+  if (s.includes('T')) {
+    const d = new Date(s);
+    const jst = new Date(d.getTime() + 9 * 60 * 60 * 1000);
+    return `${jst.getUTCFullYear()}-${String(jst.getUTCMonth()+1).padStart(2,'0')}-${String(jst.getUTCDate()).padStart(2,'0')}`;
+  }
+  const m = s.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})/);
+  if (!m) return '';
+  return `${m[1]}-${String(m[2]).padStart(2,'0')}-${String(m[3]).padStart(2,'0')}`;
+}
+
+function getAudioDates() {
+  try { return JSON.parse(localStorage.getItem(AUDIO_DATES_KEY) || '{}'); }
+  catch(e) { return {}; }
+}
+
+function saveAudioDate(date, fileName) {
+  const key = normalizeDateKey(date);
+  if (!key || !fileName) return;
+  const audioDates = getAudioDates();
+  audioDates[key] = {fileName, savedAt: new Date().toISOString()};
+  localStorage.setItem(AUDIO_DATES_KEY, JSON.stringify(audioDates));
+}
+
+async function loadCalendar() {
+  const summary = document.getElementById('calendarSummary');
+  if (!getUrl()) {
+    summary.innerHTML = '<div class="empty-state">URLを設定してください</div>';
+    renderCalendar();
+    return;
+  }
+  summary.innerHTML = '<div class="empty-state">読み込み中…</div>';
+  try { await fetchSessions(); }
+  catch(e) { summary.innerHTML = '<div class="empty-state">読み込みエラー</div>'; }
+  renderCalendar();
+}
+
+function moveCalendarMonth(diff) {
+  calendarDate = new Date(calendarDate.getFullYear(), calendarDate.getMonth() + diff, 1);
+  selectedCalendarDate = '';
+  renderCalendar();
+}
+
+function buildCalendarStats() {
+  const stats = {};
+  allRows.forEach(r => {
+    const date = normalizeDateKey(r['日付']);
+    if (!date) return;
+    if (!stats[date]) stats[date] = {memoCount:0, types:new Set(), fasiri:new Set()};
+    stats[date].memoCount++;
+    if (r['セッション種類']) stats[date].types.add(r['セッション種類']);
+    if (r['ファシリテーター']) stats[date].fasiri.add(r['ファシリテーター']);
+  });
+  return stats;
+}
+
+function renderCalendar() {
+  const grid = document.getElementById('calendarGrid');
+  const title = document.getElementById('calendarTitle');
+  const year = calendarDate.getFullYear();
+  const month = calendarDate.getMonth();
+  title.textContent = `${year}年 ${month + 1}月`;
+
+  const stats = buildCalendarStats();
+  const audioDates = getAudioDates();
+  const today = normalizeDateKey(new Date().toISOString());
+  const first = new Date(year, month, 1);
+  const last = new Date(year, month + 1, 0);
+  const weekdays = WEEKDAYS.map(d => `<div class="calendar-weekday">${d}</div>`).join('');
+  const blanks = Array.from({length:first.getDay()}, () => '<button class="calendar-day blank"></button>');
+  const days = [];
+
+  for (let day = 1; day <= last.getDate(); day++) {
+    const dateKey = `${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+    const hasMemo = !!stats[dateKey];
+    const hasAudio = !!audioDates[dateKey];
+    const marks = [
+      hasMemo ? '<span class="calendar-mark memo"></span>' : '',
+      hasAudio ? '<span class="calendar-mark audio"></span>' : ''
+    ].join('');
+    const classes = [
+      'calendar-day',
+      dateKey === today ? 'today' : '',
+      dateKey === selectedCalendarDate ? 'selected' : ''
+    ].filter(Boolean).join(' ');
+    days.push(`
+      <button class="${classes}" onclick="selectCalendarDay('${dateKey}')">
+        <span class="calendar-day-num">${day}</span>
+        <span class="calendar-marks">${marks}</span>
+      </button>`);
+  }
+
+  grid.innerHTML = weekdays + blanks.join('') + days.join('');
+  renderCalendarSummary(selectedCalendarDate || today);
+}
+
+function selectCalendarDay(dateKey) {
+  selectedCalendarDate = dateKey;
+  renderCalendar();
+}
+
+function renderCalendarSummary(dateKey) {
+  const summary = document.getElementById('calendarSummary');
+  const stats = buildCalendarStats();
+  const audioDates = getAudioDates();
+  const stat = stats[dateKey];
+  const audio = audioDates[dateKey];
+  const dateLabel = `${fmtDate(dateKey)}（${getWeekday(dateKey)}曜）`;
+  const types = stat ? [...stat.types].join('・') : 'なし';
+  const memoCount = stat ? `${stat.memoCount}件` : 'なし';
+  const audioName = audio ? audio.fileName : 'なし';
+
+  summary.innerHTML = `
+    <h3>📅 選択日</h3>
+    <div class="calendar-summary-row">
+      <div class="calendar-summary-main">
+        <span class="calendar-summary-date">${escHtml(dateLabel)}</span>
+        <button class="calendar-action" onclick="startRecordForDate('${dateKey}')">この日で記録</button>
+      </div>
+      <div class="calendar-summary-meta">メモ: ${escHtml(memoCount)}</div>
+      <div class="calendar-summary-meta">種類: ${escHtml(types)}</div>
+      <div class="calendar-summary-meta">録音: ${escHtml(audioName)}</div>
+    </div>`;
+}
+
+function startRecordForDate(dateKey) {
+  document.getElementById('recDate').value = dateKey;
+  document.getElementById('weekdayDisplay').textContent = `（${getWeekday(dateKey)}曜日）`;
+  switchTab('record');
 }
 
 // ══════════════════════════════════════════
@@ -1115,6 +1340,7 @@ function loadAudio(input, restorePosition = 0) {
   document.getElementById('audioLabel').textContent = file.name;
   document.getElementById('audioPlayer').classList.remove('no-audio');
   _currentAudioFileName = file.name;
+  saveAudioDate(document.getElementById('recDate').value, file.name);
 
   const audioBanner = document.getElementById('audioDraftBanner');
   if (audioBanner) audioBanner.remove();
