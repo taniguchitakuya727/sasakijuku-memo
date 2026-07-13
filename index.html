@@ -295,9 +295,10 @@ select option { background: #1a1f35; }
 /* ── Calendar ── */
 .calendar-toolbar {
   display: flex; align-items: center; justify-content: space-between;
-  gap: 10px; margin-bottom: 12px;
+  gap: 10px; margin-bottom: 12px; flex-wrap: wrap;
 }
 .calendar-title { font-size: 16px; font-weight: 700; color: var(--text); }
+.calendar-toolbar-actions { display: flex; align-items: center; gap: 8px; }
 .calendar-nav {
   width: 36px; height: 36px; border-radius: 8px;
   background: var(--surface); border: 1px solid var(--border);
@@ -352,6 +353,8 @@ select option { background: #1a1f35; }
   font-size: 12px; font-family: inherit; cursor: pointer; white-space: nowrap;
 }
 .calendar-action:hover { border-color: var(--accent); color: var(--accent); }
+.calendar-action.primary { border-color: var(--satori); color: var(--satori); }
+.calendar-action.primary:hover { background: rgba(249,201,79,.08); }
 
 /* ── Members ── */
 .member-form { display: flex; gap: 8px; margin-bottom: 16px; }
@@ -576,11 +579,24 @@ select option { background: #1a1f35; }
   <div class="calendar-toolbar">
     <button class="calendar-nav" onclick="moveCalendarMonth(-1)">‹</button>
     <div class="calendar-title" id="calendarTitle"></div>
-    <button class="calendar-nav" onclick="moveCalendarMonth(1)">›</button>
+    <div class="calendar-toolbar-actions">
+      <button class="calendar-action primary" onclick="openAudioFolderPicker()">音声日付取得</button>
+      <button class="calendar-nav" onclick="moveCalendarMonth(1)">›</button>
+    </div>
   </div>
+  <input
+    type="file"
+    id="audioFolderInput"
+    style="display:none"
+    webkitdirectory
+    directory
+    multiple
+    accept="audio/*"
+    onchange="handleAudioFolderFiles(this.files); this.value = '';"
+  />
   <div class="calendar-legend">
     <span class="legend-item"><span class="legend-dot memo"></span>メモあり</span>
-    <span class="legend-item"><span class="legend-dot audio"></span>録音ファイル選択済み</span>
+    <span class="legend-item"><span class="legend-dot audio"></span>録音ファイルあり</span>
   </div>
   <div class="calendar-grid" id="calendarGrid"></div>
   <div class="calendar-summary card" id="calendarSummary"></div>
@@ -1139,6 +1155,7 @@ function renderLog() {
 // Calendar
 // ══════════════════════════════════════════
 const AUDIO_DATES_KEY = 'sasakijuku_audio_dates';
+const AUDIO_EXTENSIONS = ['mp3','m4a','wav','aac','flac','ogg','opus','webm','mp4','mov'];
 
 function normalizeDateKey(val) {
   if (!val) return '';
@@ -1164,6 +1181,136 @@ function saveAudioDate(date, fileName) {
   const audioDates = getAudioDates();
   audioDates[key] = {fileName, savedAt: new Date().toISOString()};
   localStorage.setItem(AUDIO_DATES_KEY, JSON.stringify(audioDates));
+}
+
+async function openAudioFolderPicker() {
+  if ('showDirectoryPicker' in window) {
+    try {
+      const dirHandle = await window.showDirectoryPicker();
+      const files = await collectAudioFilesFromDirectory(dirHandle);
+      registerAudioFolderFiles(files, {folderName: dirHandle.name});
+      return;
+    } catch(e) {
+      if (e && e.name === 'AbortError') return;
+    }
+  }
+  document.getElementById('audioFolderInput').click();
+}
+
+async function collectAudioFilesFromDirectory(dirHandle) {
+  const files = [];
+  for await (const entry of dirHandle.values()) {
+    if (entry.kind === 'file') {
+      const file = await entry.getFile();
+      files.push(file);
+    }
+  }
+  return files;
+}
+
+function handleAudioFolderFiles(fileList) {
+  const files = Array.from(fileList || []);
+  const folderName = getSelectedFolderName(files);
+  registerAudioFolderFiles(files.filter(isDirectFolderFile), {folderName});
+}
+
+function registerAudioFolderFiles(files, options={}) {
+  const audioFiles = files.filter(isAudioFile);
+  if (!audioFiles.length) {
+    toast('直下に音声ファイルが見つかりませんでした','error');
+    return;
+  }
+
+  const grouped = {};
+  audioFiles.forEach(file => {
+    const dateKey = getAudioFileDateKey(file);
+    if (!dateKey) return;
+    if (!grouped[dateKey]) grouped[dateKey] = [];
+    grouped[dateKey].push(file.name);
+  });
+
+  const dates = Object.keys(grouped);
+  if (!dates.length) {
+    toast('日付を判定できる音声ファイルがありませんでした','error');
+    return;
+  }
+
+  const audioDates = getAudioDates();
+  dates.forEach(dateKey => {
+    const names = grouped[dateKey].sort();
+    audioDates[dateKey] = {
+      fileName: names[0],
+      fileNames: names.slice(0, 20),
+      count: names.length,
+      savedAt: new Date().toISOString(),
+      source: 'folder-root',
+      folderName: options.folderName || ''
+    };
+  });
+  localStorage.setItem(AUDIO_DATES_KEY, JSON.stringify(audioDates));
+  renderCalendar();
+  toast(`直下${audioFiles.length}件から${dates.length}日分の日付を取得しました`,'success');
+}
+
+function getSelectedFolderName(files) {
+  const path = files.find(file => file.webkitRelativePath)?.webkitRelativePath || '';
+  return path.split('/').filter(Boolean)[0] || '';
+}
+
+function isDirectFolderFile(file) {
+  const path = file.webkitRelativePath || '';
+  if (!path) return true;
+  return path.split('/').filter(Boolean).length === 2;
+}
+
+function isAudioFile(file) {
+  if (file.type && file.type.startsWith('audio/')) return true;
+  const ext = String(file.name || '').split('.').pop().toLowerCase();
+  return AUDIO_EXTENSIONS.includes(ext);
+}
+
+function getAudioFileDateKey(file) {
+  const dateFromName = extractDateFromFileName(file.name);
+  if (dateFromName) return dateFromName;
+  if (!file.lastModified) return '';
+  return normalizeDateKey(new Date(file.lastModified).toISOString());
+}
+
+function extractDateFromFileName(fileName) {
+  const s = String(fileName || '');
+  const shortDate = s.match(/(?:^|[^\d])(\d{2})(\d{2})(\d{2})(?:[^\d]|$)/);
+  if (shortDate) {
+    const year = 2000 + Number(shortDate[1]);
+    const dateKey = buildDateKey(year, shortDate[2], shortDate[3]);
+    if (dateKey) return dateKey;
+  }
+
+  const patterns = [
+    /(\d{4})[-_.](\d{1,2})[-_.](\d{1,2})/,
+    /(\d{4})年(\d{1,2})月(\d{1,2})日?/,
+    /(?:^|[^\d])(\d{4})(\d{2})(\d{2})(?:[^\d]|$)/
+  ];
+
+  for (const pattern of patterns) {
+    const m = s.match(pattern);
+    if (!m) continue;
+    const dateKey = buildDateKey(m[1], m[2], m[3]);
+    if (dateKey) return dateKey;
+  }
+  return '';
+}
+
+function buildDateKey(year, month, day) {
+  const y = Number(year);
+  const m = Number(month);
+  const d = Number(day);
+  const date = new Date(y, m - 1, d);
+  if (
+    date.getFullYear() !== y ||
+    date.getMonth() !== m - 1 ||
+    date.getDate() !== d
+  ) return '';
+  return `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
 }
 
 async function loadCalendar() {
@@ -1252,7 +1399,11 @@ function renderCalendarSummary(dateKey) {
   const dateLabel = `${fmtDate(dateKey)}（${getWeekday(dateKey)}曜）`;
   const types = stat ? [...stat.types].join('・') : 'なし';
   const memoCount = stat ? `${stat.memoCount}件` : 'なし';
-  const audioName = audio ? audio.fileName : 'なし';
+  const audioName = formatAudioFileLabel(audio);
+  const audioSource = formatAudioSourceLabel(audio);
+  const audioSourceHtml = audioSource
+    ? `<div class="calendar-summary-meta">取得元: ${escHtml(audioSource)}</div>`
+    : '';
 
   summary.innerHTML = `
     <h3>📅 選択日</h3>
@@ -1264,7 +1415,24 @@ function renderCalendarSummary(dateKey) {
       <div class="calendar-summary-meta">メモ: ${escHtml(memoCount)}</div>
       <div class="calendar-summary-meta">種類: ${escHtml(types)}</div>
       <div class="calendar-summary-meta">録音: ${escHtml(audioName)}</div>
+      ${audioSourceHtml}
     </div>`;
+}
+
+function formatAudioFileLabel(audio) {
+  if (!audio) return 'なし';
+  if (audio.count && audio.count > 1) {
+    return `${audio.fileName} ほか${audio.count - 1}件`;
+  }
+  return audio.fileName || 'あり';
+}
+
+function formatAudioSourceLabel(audio) {
+  if (!audio) return '';
+  if (audio.source === 'folder-root') {
+    return `${audio.folderName || '選択フォルダ'} 直下`;
+  }
+  return '';
 }
 
 function startRecordForDate(dateKey) {
