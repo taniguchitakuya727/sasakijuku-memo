@@ -398,12 +398,20 @@ select option { background: #1a1f35; }
   font-family: 'DM Mono', monospace; font-size: 11px; color: #a8d8ff;
   white-space: pre; overflow-x: auto; line-height: 1.6;
 }
+.setup-action-row {
+  display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px;
+}
 .copy-btn {
   background: var(--surface2); border: 1px solid var(--border);
-  color: var(--muted); font-size: 11px; padding: 4px 10px;
-  border-radius: 4px; cursor: pointer; margin-top: 6px; font-family: inherit;
+  color: var(--muted); font-size: 12px; padding: 8px 12px;
+  border-radius: 6px; cursor: pointer; font-family: inherit; font-weight: 600;
 }
 .copy-btn:hover { color: var(--text); }
+.copy-btn.primary {
+  background: var(--accent); border-color: var(--accent);
+  color: #fff; padding: 10px 14px;
+}
+.copy-btn.primary:hover { opacity: .9; color: #fff; }
 .url-row { display: flex; gap: 8px; margin-top: 8px; }
 .url-row input {
   flex: 1; background: #0a0d16; border: 1px solid var(--border);
@@ -478,8 +486,13 @@ select option { background: #1a1f35; }
       <div class="step-num">3</div>
       <div class="step-body">
         <p>以下を<strong>まるごとコピペ</strong>して保存（⌘S）</p>
+        <div class="setup-action-row">
+          <button class="copy-btn primary" onclick="copyGasCode()">GASコードをコピー</button>
+        </div>
         <div class="code-block" id="gasCodeDisplay"></div>
-        <button class="copy-btn" onclick="copyGasCode()">📋 コードをコピー</button>
+        <div class="setup-action-row">
+          <button class="copy-btn" onclick="copyGasCode()">もう一度コピー</button>
+        </div>
       </div>
     </div>
     <div class="step">
@@ -744,7 +757,26 @@ function updateStatus() {
   document.getElementById('statusText').textContent = ok ? '接続済み' : '未設定';
 }
 function copyGasCode() {
-  navigator.clipboard.writeText(GAS_CODE).then(() => toast('コードをコピーしました','success'));
+  if (navigator.clipboard && window.isSecureContext) {
+    navigator.clipboard.writeText(GAS_CODE)
+      .then(() => toast('GASコードをコピーしました','success'))
+      .catch(() => copyGasCodeFallback());
+    return;
+  }
+  copyGasCodeFallback();
+}
+
+function copyGasCodeFallback() {
+  const textarea = document.createElement('textarea');
+  textarea.value = GAS_CODE;
+  textarea.setAttribute('readonly', '');
+  textarea.style.position = 'fixed';
+  textarea.style.opacity = '0';
+  document.body.appendChild(textarea);
+  textarea.select();
+  const ok = document.execCommand('copy');
+  textarea.remove();
+  toast(ok ? 'GASコードをコピーしました' : 'コピーできませんでした', ok ? 'success' : 'error');
 }
 
 // ══════════════════════════════════════════
@@ -1155,6 +1187,7 @@ function renderLog() {
 // Calendar
 // ══════════════════════════════════════════
 const AUDIO_DATES_KEY = 'sasakijuku_audio_dates';
+const AUDIO_INDEX_URL = 'audio-index.json';
 const AUDIO_EXTENSIONS = ['mp3','m4a','wav','aac','flac','ogg','opus','webm','mp4','mov'];
 
 function normalizeDateKey(val) {
@@ -1180,6 +1213,36 @@ function saveAudioDate(date, fileName) {
   if (!key || !fileName) return;
   const audioDates = getAudioDates();
   audioDates[key] = {fileName, savedAt: new Date().toISOString()};
+  localStorage.setItem(AUDIO_DATES_KEY, JSON.stringify(audioDates));
+}
+
+async function loadPublishedAudioIndex() {
+  try {
+    const res = await fetch(`${AUDIO_INDEX_URL}?t=${Date.now()}`, {cache:'no-store'});
+    if (!res.ok) return;
+    const index = await res.json();
+    mergePublishedAudioIndex(index);
+  } catch(e) {
+    console.warn('audio index load failed', e);
+  }
+}
+
+function mergePublishedAudioIndex(index) {
+  const dates = index && index.dates ? index.dates : {};
+  const audioDates = getAudioDates();
+  Object.keys(dates).forEach(dateKey => {
+    const key = normalizeDateKey(dateKey);
+    const item = dates[dateKey] || {};
+    if (!key || !item.fileName) return;
+    audioDates[key] = {
+      fileName: item.fileName,
+      fileNames: item.fileNames || [item.fileName],
+      count: item.count || 1,
+      savedAt: index.generatedAt || new Date().toISOString(),
+      source: 'published-index',
+      folderName: index.folderName || '差取り塾音声'
+    };
+  });
   localStorage.setItem(AUDIO_DATES_KEY, JSON.stringify(audioDates));
 }
 
@@ -1315,6 +1378,8 @@ function buildDateKey(year, month, day) {
 
 async function loadCalendar() {
   const summary = document.getElementById('calendarSummary');
+  await loadPublishedAudioIndex();
+
   if (!getUrl()) {
     summary.innerHTML = '<div class="empty-state">URLを設定してください</div>';
     renderCalendar();
@@ -1429,6 +1494,9 @@ function formatAudioFileLabel(audio) {
 
 function formatAudioSourceLabel(audio) {
   if (!audio) return '';
+  if (audio.source === 'published-index') {
+    return `${audio.folderName || '差取り塾音声'} 一覧データ`;
+  }
   if (audio.source === 'folder-root') {
     return `${audio.folderName || '選択フォルダ'} 直下`;
   }
