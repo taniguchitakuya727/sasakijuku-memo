@@ -1673,6 +1673,10 @@ function saveDraft() {
     speaker: b.querySelector('.utt-speaker-select').value,
     memo: b.querySelector('.utt-memo').value
   }));
+  const hasMemo = utterances.some(u => u.memo.trim() || u.speaker.trim());
+  const hasFasiri = fasiriVals.some(v => v.trim());
+  if (!selectedType && !hasFasiri && !hasMemo && !_currentAudioFileName) return;
+
   const audio = document.getElementById('audioEl');
   const audioPosition = audio.currentTime > 0 ? Math.floor(audio.currentTime) : 0;
   const draft = {
@@ -1689,10 +1693,10 @@ function clearDraft() {
 
 function restoreDraft() {
   const raw = localStorage.getItem(DRAFT_KEY);
-  if (!raw) return;
+  if (!raw) return false;
   try {
     const draft = JSON.parse(raw);
-    if (!draft.utterances || draft.utterances.length === 0) return;
+    if (!draft.utterances || draft.utterances.length === 0) return false;
 
     if (draft.date) {
       document.getElementById('recDate').value = draft.date;
@@ -1755,21 +1759,44 @@ function restoreDraft() {
         `<button onclick="this.parentElement.remove()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:12px;float:right;">✕</button>`;
       document.getElementById('panel-record').insertBefore(audioBanner, document.getElementById('panel-record').firstChild);
     }
-  } catch(e) { clearDraft(); }
+    return true;
+  } catch(e) {
+    clearDraft();
+    return false;
+  }
 }
 
-// 入力のたびに下書き保存（500msデバウンス）
+function saveDraftNow() {
+  clearTimeout(draftTimer);
+  saveDraft();
+}
+
+// 入力のたびに下書き保存
 let draftTimer = null;
 function scheduleDraft() {
   clearTimeout(draftTimer);
-  draftTimer = setTimeout(saveDraft, 500);
+  draftTimer = setTimeout(saveDraft, 150);
 }
 document.addEventListener('input', e => {
   if (document.getElementById('panel-record').classList.contains('active')) scheduleDraft();
 });
 document.addEventListener('change', e => {
-  if (document.getElementById('panel-record').classList.contains('active')) scheduleDraft();
+  if (document.getElementById('panel-record').classList.contains('active')) saveDraftNow();
 });
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') saveDraftNow();
+});
+window.addEventListener('pagehide', saveDraftNow);
+window.addEventListener('blur', saveDraftNow);
+
+function openRestoredDraftIfNeeded() {
+  if (restoreDraft()) switchTab('record');
+}
+
+function hasUnsavedDraftInput() {
+  const uttBlocks = document.querySelectorAll('.utterance-block');
+  return [...uttBlocks].some(b => b.querySelector('.utt-memo').value.trim());
+}
 
 // 保存成功時に下書きをクリア
 const _origSubmit = submitRecord;
@@ -1815,9 +1842,8 @@ async function submitRecord() {
 
 // 離脱警告
 window.addEventListener('beforeunload', e => {
-  const uttBlocks = document.querySelectorAll('.utterance-block');
-  const hasInput = [...uttBlocks].some(b => b.querySelector('.utt-memo').value.trim());
-  if (hasInput) {
+  saveDraftNow();
+  if (hasUnsavedDraftInput()) {
     e.preventDefault();
     e.returnValue = '';
   }
@@ -1836,7 +1862,7 @@ document.getElementById('audioPlayer').classList.add('no-audio');
 addFasiriRow(true);
 addUtterance();
 switchTab('setup');
-setTimeout(restoreDraft, 800);
+setTimeout(openRestoredDraftIfNeeded, 800);
 </script>
 </body>
 </html>
