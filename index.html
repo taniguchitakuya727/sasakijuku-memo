@@ -1546,13 +1546,21 @@ function loadAudio(input, restorePosition = 0) {
   newAudio.id = 'audioEl';
   oldAudio.replaceWith(newAudio);
 
+  const restoreSec = Number(restorePosition) || 0;
+  let restoredAudioPosition = false;
+  const restoreAudioPosition = () => {
+    if (restoredAudioPosition || restoreSec <= 0) return;
+    const duration = Number.isFinite(newAudio.duration) ? newAudio.duration : null;
+    newAudio.currentTime = duration ? Math.min(restoreSec, duration) : restoreSec;
+    restoredAudioPosition = true;
+    updateAudioTimeDisplay(newAudio);
+  };
+
   // イベント登録
   newAudio.onloadedmetadata = () => {
-    document.getElementById('seekBar').max = newAudio.duration;
+    document.getElementById('seekBar').max = Number.isFinite(newAudio.duration) ? newAudio.duration : 0;
     document.getElementById('durTime').textContent = fmtTime(newAudio.duration);
-    if (restorePosition > 0) {
-      newAudio.currentTime = Math.min(restorePosition, newAudio.duration);
-    }
+    restoreAudioPosition();
   };
   newAudio.ontimeupdate = () => {
     document.getElementById('seekBar').value = newAudio.currentTime;
@@ -1566,6 +1574,7 @@ function loadAudio(input, restorePosition = 0) {
     document.getElementById('playBtn').textContent = '▶';
   };
   newAudio.oncanplay = () => {
+    restoreAudioPosition();
     // 前のURLを安全に解放
     if (prevUrl) URL.revokeObjectURL(prevUrl);
   };
