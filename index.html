@@ -1526,6 +1526,7 @@ function toast(msg, type='') {
 // ══════════════════════════════════════════
 let _currentAudioFileName = null;
 let _lastSavedAudioSec = -1;
+let _pendingAudioResumeSec = 0;
 
 // audio要素への参照を1か所で管理
 function getAudio() { return document.getElementById('audioEl'); }
@@ -1546,15 +1547,8 @@ function loadAudio(input, restorePosition = 0) {
   newAudio.id = 'audioEl';
   oldAudio.replaceWith(newAudio);
 
-  const restoreSec = Number(restorePosition) || 0;
-  let restoredAudioPosition = false;
-  const restoreAudioPosition = () => {
-    if (restoredAudioPosition || restoreSec <= 0) return;
-    const duration = Number.isFinite(newAudio.duration) ? newAudio.duration : null;
-    newAudio.currentTime = duration ? Math.min(restoreSec, duration) : restoreSec;
-    restoredAudioPosition = true;
-    updateAudioTimeDisplay(newAudio);
-  };
+  _pendingAudioResumeSec = Math.max(0, Number(restorePosition) || 0);
+  const restoreAudioPosition = () => applyPendingAudioResume(newAudio);
 
   // イベント登録
   newAudio.onloadedmetadata = () => {
@@ -1593,6 +1587,7 @@ function loadAudio(input, restorePosition = 0) {
 function togglePlay() {
   const audio = getAudio();
   if (!audio || !audio.src) return;
+  applyPendingAudioResume(audio);
   if (audio.paused) {
     audio.play().then(() => {
       document.getElementById('playBtn').textContent = '⏸';
@@ -1605,6 +1600,7 @@ function togglePlay() {
 function seekAudio(sec) {
   const audio = getAudio();
   if (!audio || !audio.src) return;
+  applyPendingAudioResume(audio);
   const duration = Number.isFinite(audio.duration) ? audio.duration : null;
   const nextTime = duration
     ? Math.max(0, Math.min(duration, audio.currentTime + sec))
@@ -1622,6 +1618,22 @@ function setSpeed(rate, btn) {
   document.getElementById('audioEl').playbackRate = rate;
   document.querySelectorAll('.speed-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
+}
+function applyPendingAudioResume(audio) {
+  if (!audio || _pendingAudioResumeSec <= 0) return false;
+  const duration = Number.isFinite(audio.duration) ? audio.duration : null;
+  const target = duration ? Math.min(_pendingAudioResumeSec, duration) : _pendingAudioResumeSec;
+  try {
+    audio.currentTime = target;
+  } catch(e) {
+    return false;
+  }
+  updateAudioTimeDisplay(audio);
+  if (Math.abs((audio.currentTime || 0) - target) < 1) {
+    _pendingAudioResumeSec = 0;
+    return true;
+  }
+  return false;
 }
 function updateAudioTimeDisplay(audio) {
   const seekBar = document.getElementById('seekBar');
