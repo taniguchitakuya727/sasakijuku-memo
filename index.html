@@ -264,7 +264,7 @@ select option { background: #1a1f35; }
 .session-card {
   background: var(--surface); border: 1px solid var(--border);
   border-radius: var(--radius); padding: 15px; margin-bottom: 11px;
-  cursor: pointer; transition: border-color .2s;
+  transition: border-color .2s;
 }
 .session-card:hover { border-color: var(--accent); }
 .session-card.satori-card  { border-left: 3px solid var(--satori); }
@@ -272,7 +272,8 @@ select option { background: #1a1f35; }
 .session-card.yuu-card     { border-left: 3px solid var(--yuu); }
 .session-card.shaberi-card { border-left: 3px solid var(--shaberi); }
 .session-card.accent-card  { border-left: 3px solid var(--accent); }
-.sc-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px; }
+.sc-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px; gap: 10px; }
+.sc-header, .sc-hint { user-select: none; }
 .sc-date { font-size: 13px; font-weight: 700; color: var(--accent); font-family: 'DM Mono', monospace; }
 .sc-meta { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; }
 .sc-type-badge {
@@ -286,10 +287,18 @@ select option { background: #1a1f35; }
 .sc-type-badge.accent  { background: rgba(79,156,249,.15);   color: var(--accent); }
 .sc-fasiri { font-size: 11px; color: var(--muted); }
 .sc-hint { font-size: 11px; color: var(--muted); margin-top: 4px; }
+.log-copy-btn,
+.log-toggle-btn {
+  background: var(--surface2); border: 1px solid var(--border);
+  color: var(--muted); padding: 4px 9px; border-radius: 6px;
+  font-size: 11px; font-family: inherit; cursor: pointer; flex-shrink: 0;
+}
+.log-copy-btn:hover, .log-toggle-btn:hover { border-color: var(--accent); color: var(--accent); }
+.utterance-tools { display: flex; justify-content: flex-end; margin-bottom: 5px; }
 .weekday-badge { display: inline-block; background: var(--surface2); border-radius: 4px; padding: 1px 6px; font-size: 10px; color: var(--muted); margin-left: 5px; }
 .utterance-item { border-top: 1px solid var(--border); padding-top: 9px; margin-top: 9px; }
 .ui-speaker { font-size: 11px; font-weight: 700; color: var(--accent2); margin-bottom: 3px; }
-.ui-memo { font-size: 13px; line-height: 1.6; }
+.ui-memo { font-size: 13px; line-height: 1.6; user-select: text; cursor: text; }
 .session-card.collapsed .utterance-item { display: none; }
 
 /* ── Calendar ── */
@@ -1162,11 +1171,14 @@ function renderLog() {
     const {key: typeClass, emoji: typeEmoji} = getTypeStyle(g.type || '');
     const uttHtml = g.utterances.map(u => `
       <div class="utterance-item">
+        <div class="utterance-tools">
+          <button class="log-copy-btn" data-memo="${escAttr(u.memo)}" onclick="copyLogMemo(this)">コピー</button>
+        </div>
         <div class="ui-speaker">${escHtml(u.speaker)||'（名前なし）'}</div>
         <div class="ui-memo">${escHtml(u.memo)}</div>
       </div>`).join('');
     return `
-      <div class="session-card collapsed ${typeClass}-card" onclick="this.classList.toggle('collapsed')">
+      <div class="session-card collapsed ${typeClass}-card">
         <div class="sc-header">
           <div>
             <span class="sc-date">${escHtml(fmtDate(g.date))}</span>
@@ -1175,12 +1187,51 @@ function renderLog() {
           <div class="sc-meta">
             <span class="sc-type-badge ${typeClass}">${typeEmoji} ${escHtml(g.type||'')}</span>
             <span class="sc-fasiri">🎤 ${escHtml(g.fasiri)}</span>
+            <button class="log-toggle-btn" onclick="toggleSessionCard(this)">展開</button>
           </div>
         </div>
         <div class="sc-hint">${g.utterances.length}件の発言 — タップで展開</div>
         ${uttHtml}
       </div>`;
   }).join('');
+}
+
+function toggleSessionCard(btn) {
+  const card = btn.closest('.session-card');
+  if (!card) return;
+  const collapsed = card.classList.toggle('collapsed');
+  btn.textContent = collapsed ? '展開' : '閉じる';
+}
+
+function copyLogMemo(btn) {
+  const memo = btn.dataset.memo || '';
+  copyText(memo, () => {
+    const original = btn.textContent;
+    btn.textContent = 'コピー済み';
+    setTimeout(() => btn.textContent = original, 1200);
+  });
+}
+
+function copyText(text, onSuccess) {
+  if (navigator.clipboard && window.isSecureContext) {
+    navigator.clipboard.writeText(text).then(onSuccess).catch(() => copyTextFallback(text, onSuccess));
+    return;
+  }
+  copyTextFallback(text, onSuccess);
+}
+
+function copyTextFallback(text, onSuccess) {
+  const textarea = document.createElement('textarea');
+  textarea.value = text;
+  textarea.setAttribute('readonly', '');
+  textarea.style.position = 'fixed';
+  textarea.style.opacity = '0';
+  document.body.appendChild(textarea);
+  textarea.select();
+  const ok = document.execCommand('copy');
+  textarea.remove();
+  if (ok) onSuccess();
+  else toast('コピーできませんでした','error');
 }
 
 // ══════════════════════════════════════════
@@ -1514,6 +1565,9 @@ function startRecordForDate(dateKey) {
 // ══════════════════════════════════════════
 function escHtml(s) {
   return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+function escAttr(s) {
+  return escHtml(s).replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
 function toast(msg, type='') {
   const el = document.getElementById('toast');
