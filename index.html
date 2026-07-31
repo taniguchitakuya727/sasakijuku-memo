@@ -549,7 +549,7 @@ select option { background: #1a1f35; }
 
   <!-- 発言 / メモ -->
   <div class="form-section">
-    <label class="form-label">発言 / メモ <span style="color:var(--muted);font-size:10px;font-weight:400;text-transform:none;">Space=再生停止　←→=10秒</span></label>
+    <label class="form-label">発言 / メモ <span style="color:var(--muted);font-size:10px;font-weight:400;text-transform:none;">Space/←→=音声　入力中: Ctrl+Space/Ctrl+←→</span></label>
     <div id="utteranceList"></div>
     <button class="next-utt-btn" onclick="addUtterance(true)">＋ 次の発言者</button>
   </div>
@@ -1741,9 +1741,27 @@ function fmtDate(val) {
 
 // ── キーボードショートカット ──
 document.addEventListener('keydown', e => {
-  // textarea/inputにフォーカス中は無効
   const tag = document.activeElement.tagName;
-  if (tag === 'TEXTAREA' || tag === 'INPUT' || tag === 'SELECT') return;
+  const isTyping = tag === 'TEXTAREA' || tag === 'INPUT' || tag === 'SELECT';
+  const isCtrlShortcut = e.ctrlKey && !e.metaKey && !e.altKey;
+
+  if (isCtrlShortcut && e.code === 'Space') {
+    e.preventDefault();
+    togglePlay();
+    return;
+  }
+  if (isCtrlShortcut && e.code === 'ArrowLeft') {
+    e.preventDefault();
+    seekAudio(-10);
+    return;
+  }
+  if (isCtrlShortcut && e.code === 'ArrowRight') {
+    e.preventDefault();
+    seekAudio(10);
+    return;
+  }
+
+  if (isTyping) return;
   if (e.code === 'Space') { e.preventDefault(); togglePlay(); }
   if (e.code === 'ArrowLeft')  { e.preventDefault(); seekAudio(-10); }
   if (e.code === 'ArrowRight') { e.preventDefault(); seekAudio(10); }
